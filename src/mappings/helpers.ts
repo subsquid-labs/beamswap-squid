@@ -1,64 +1,55 @@
-import assert from "assert";
-import {
-  User,
-  Bundle,
-  Token,
-  LiquidityPosition,
-  LiquidityPositionSnapshot,
-  Pair,
-} from "../model";
-import { getErc20Contract, getErc20NameBytesContract } from "../contract";
+import assert from 'assert'
+import { Store } from '@subsquid/substrate-processor'
+import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair } from '../model'
+import { getErc20Contract, getErc20NameBytesContract } from '../contract'
+import { ZERO_BD, ZERO_BI } from '../consts'
 
 export async function fetchTokenSymbol(tokenAddress: string): Promise<string> {
-  try {
-    const contract = getErc20Contract(tokenAddress);
-    const symbolResult = await contract.symbol();
-    assert(typeof symbolResult === "string");
+    try {
+        const contract = getErc20Contract(tokenAddress)
+        const symbolResult = await contract.symbol()
+        assert(typeof symbolResult === 'string')
 
-    return symbolResult;
-  } catch (err) {
-    const contractNameBytes = getErc20NameBytesContract(tokenAddress);
-    const symbolResultBytes = await contractNameBytes.symbol();
-    assert(Buffer.isBuffer(symbolResultBytes));
+        return symbolResult
+    } catch (err) {
+        const contractNameBytes = getErc20NameBytesContract(tokenAddress)
+        const symbolResultBytes = await contractNameBytes.symbol()
+        assert(Buffer.isBuffer(symbolResultBytes))
 
-    return symbolResultBytes.toString("ascii");
-  }
+        return symbolResultBytes.toString('ascii')
+    }
 }
 
 export async function fetchTokenName(tokenAddress: string): Promise<string> {
-  try {
-    const contract = getErc20Contract(tokenAddress);
-    const nameResult = await contract.name();
-    assert(typeof nameResult === "string");
+    try {
+        const contract = getErc20Contract(tokenAddress)
+        const nameResult = await contract.name()
+        assert(typeof nameResult === 'string')
 
-    return nameResult;
-  } catch (err) {
-    const contractNameBytes = getErc20NameBytesContract(tokenAddress);
-    const nameResultBytes = await contractNameBytes.name();
-    assert(Buffer.isBuffer(nameResultBytes));
+        return nameResult
+    } catch (err) {
+        const contractNameBytes = getErc20NameBytesContract(tokenAddress)
+        const nameResultBytes = await contractNameBytes.name()
+        assert(Buffer.isBuffer(nameResultBytes))
 
-    return nameResultBytes.toString("ascii");
-  }
+        return nameResultBytes.toString('ascii')
+    }
 }
 
-export async function fetchTokenTotalSupply(
-  tokenAddress: string
-): Promise<bigint> {
-  const contract = getErc20Contract(tokenAddress);
-  const totalSupplyResult = (await contract.totalSupply())?.toBigInt();
-  assert(typeof totalSupplyResult === "bigint");
+export async function fetchTokenTotalSupply(tokenAddress: string): Promise<bigint> {
+    const contract = getErc20Contract(tokenAddress)
+    const totalSupplyResult = (await contract.totalSupply())?.toBigInt()
+    assert(typeof totalSupplyResult === 'bigint')
 
-  return totalSupplyResult;
+    return totalSupplyResult
 }
 
-export async function fetchTokenDecimals(
-  tokenAddress: string
-): Promise<bigint> {
-  const contract = getErc20Contract(tokenAddress);
-  const decimalsResult = await contract.decimals();
-  assert(typeof decimalsResult === "number");
+export async function fetchTokenDecimals(tokenAddress: string): Promise<bigint> {
+    const contract = getErc20Contract(tokenAddress)
+    const decimalsResult = await contract.decimals()
+    assert(typeof decimalsResult === 'number')
 
-  return BigInt(decimalsResult);
+    return BigInt(decimalsResult)
 }
 
 // export function createLiquidityPosition(
@@ -82,14 +73,23 @@ export async function fetchTokenDecimals(
 //   return liquidityTokenBalance as LiquidityPosition;
 // }
 
-// export function createUser(address: Address): void {
-//   let user = User.load(address.toHexString());
-//   if (user === null) {
-//     user = new User(address.toHexString());
-//     user.usdSwapped = ZERO_BD;
-//     user.save();
-//   }
-// }
+export function createUser(address: string): User {
+    return new User({
+        id: address,
+        usdSwapped: ZERO_BD,
+        liquidityPositions: [],
+    })
+}
+
+export async function getUser(store: Store, address: string): Promise<User> {
+    let user = await store.get(User, address)
+    if (!user) {
+        user = createUser(address)
+        await store.save(user)
+    }
+
+    return user
+}
 
 // export function createLiquiditySnapshot(
 //   position: LiquidityPosition,
@@ -121,3 +121,38 @@ export async function fetchTokenDecimals(
 //   snapshot.save();
 //   position.save();
 // }
+
+export async function createToken(address: string): Promise<Token> {
+    // fetch info if null
+    const decimals = await fetchTokenDecimals(address)
+
+    // bail if we couldn't figure out the decimals
+    if (!decimals) {
+        throw new Error(`Decimals for token ${address} not found`)
+    }
+
+    return new Token({
+        id: address,
+        symbol: await fetchTokenSymbol(address),
+        name: await fetchTokenName(address),
+        totalSupply: await fetchTokenTotalSupply(address),
+        decimals,
+        derivedETH: ZERO_BD,
+        tradeVolume: ZERO_BD,
+        tradeVolumeUSD: ZERO_BD,
+        untrackedVolumeUSD: ZERO_BD,
+        totalLiquidity: ZERO_BD,
+        // allPairs: [],
+        txCount: ZERO_BI,
+    })
+}
+
+export async function getToken(store: Store, address: string): Promise<Token> {
+    let token = await store.get(Token, address)
+    if (!token) {
+        token = await createToken(address)
+        await store.save(token)
+    }
+
+    return token
+}
