@@ -44,7 +44,7 @@ type Token @entity {
   totalLiquidity: Float!
 
   # derived prices
-  derivedETH: Float
+  derivedETH: Float!
 
   # derived fields
   tokenDayData: [TokenDayData!]! @derivedFrom(field: "token")
@@ -114,8 +114,8 @@ type LiquidityPosition @entity {
 type LiquidityPositionSnapshot @entity {
   id: ID!
   liquidityPosition: LiquidityPosition!
-  timestamp: Int! # saved for fast historical lookups
-  block: Int! # saved for fast historical lookups
+  timestamp: BigInt! # saved for fast historical lookups
+  block: BigInt! # saved for fast historical lookups
   user: User! # reference to user
   pair: Pair! # reference to pair
   token0PriceUSD: Float! # snapshot of token0 price
@@ -133,9 +133,9 @@ type Transaction @entity {
   timestamp: BigInt!
   # This is not the reverse of Mint.transaction; it is only used to
   # track incomplete mints (similar for burns and swaps)
-  mints: [ID]!
-  burns: [ID]!
-  swaps: [ID]!
+  mints: [ID!]!
+  burns: [ID!]!
+  swaps: [ID!]!
 }
 
 type Mint @entity {
@@ -146,11 +146,11 @@ type Mint @entity {
   pair: Pair!
 
   # populated from the primary Transfer event
-  to: Bytes!
+  to: String!
   liquidity: Float!
 
   # populated from the Mint event
-  sender: Bytes
+  sender: String
   amount0: Float
   amount1: Float
   logIndex: BigInt
@@ -158,7 +158,7 @@ type Mint @entity {
   amountUSD: Float
 
   # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: Bytes
+  feeTo: String
   feeLiquidity: Float
 }
 
@@ -173,10 +173,10 @@ type Burn @entity {
   liquidity: Float!
 
   # populated from the Burn event
-  sender: Bytes
+  sender: String
   amount0: Float
   amount1: Float
-  to: Bytes
+  to: String
   logIndex: BigInt
   # derived amount based on available prices of tokens
   amountUSD: Float
@@ -185,7 +185,7 @@ type Burn @entity {
   needsComplete: Boolean!
 
   # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: Bytes
+  feeTo: String
   feeLiquidity: Float
 }
 
