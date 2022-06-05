@@ -2,26 +2,26 @@ import * as ethers from "ethers";
 
 export const abi = new ethers.utils.Interface(getJsonAbi());
 
-export interface ApprovalAddressAddressUint256Event {
+export interface Approval0Event {
   owner: string;
   spender: string;
   value: ethers.BigNumber;
 }
 
-export interface BurnAddressUint256Uint256AddressEvent {
+export interface Burn0Event {
   sender: string;
   amount0: ethers.BigNumber;
   amount1: ethers.BigNumber;
   to: string;
 }
 
-export interface MintAddressUint256Uint256Event {
+export interface Mint0Event {
   sender: string;
   amount0: ethers.BigNumber;
   amount1: ethers.BigNumber;
 }
 
-export interface SwapAddressUint256Uint256Uint256Uint256AddressEvent {
+export interface Swap0Event {
   sender: string;
   amount0In: ethers.BigNumber;
   amount1In: ethers.BigNumber;
@@ -30,12 +30,12 @@ export interface SwapAddressUint256Uint256Uint256Uint256AddressEvent {
   to: string;
 }
 
-export interface SyncUint112Uint112Event {
+export interface Sync0Event {
   reserve0: ethers.BigNumber;
   reserve1: ethers.BigNumber;
 }
 
-export interface TransferAddressAddressUint256Event {
+export interface Transfer0Event {
   from: string;
   to: string;
   value: ethers.BigNumber;
@@ -49,7 +49,7 @@ export interface EvmEvent {
 export const events = {
   "Approval(address,address,uint256)":  {
     topic: abi.getEventTopic("Approval(address,address,uint256)"),
-    decode(data: EvmEvent): ApprovalAddressAddressUint256Event {
+    decode(data: EvmEvent): Approval0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Approval(address,address,uint256)"),
         data.data || "",
@@ -65,7 +65,7 @@ export const events = {
   ,
   "Burn(address,uint256,uint256,address)":  {
     topic: abi.getEventTopic("Burn(address,uint256,uint256,address)"),
-    decode(data: EvmEvent): BurnAddressUint256Uint256AddressEvent {
+    decode(data: EvmEvent): Burn0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Burn(address,uint256,uint256,address)"),
         data.data || "",
@@ -82,7 +82,7 @@ export const events = {
   ,
   "Mint(address,uint256,uint256)":  {
     topic: abi.getEventTopic("Mint(address,uint256,uint256)"),
-    decode(data: EvmEvent): MintAddressUint256Uint256Event {
+    decode(data: EvmEvent): Mint0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Mint(address,uint256,uint256)"),
         data.data || "",
@@ -98,7 +98,7 @@ export const events = {
   ,
   "Swap(address,uint256,uint256,uint256,uint256,address)":  {
     topic: abi.getEventTopic("Swap(address,uint256,uint256,uint256,uint256,address)"),
-    decode(data: EvmEvent): SwapAddressUint256Uint256Uint256Uint256AddressEvent {
+    decode(data: EvmEvent): Swap0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Swap(address,uint256,uint256,uint256,uint256,address)"),
         data.data || "",
@@ -117,7 +117,7 @@ export const events = {
   ,
   "Sync(uint112,uint112)":  {
     topic: abi.getEventTopic("Sync(uint112,uint112)"),
-    decode(data: EvmEvent): SyncUint112Uint112Event {
+    decode(data: EvmEvent): Sync0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Sync(uint112,uint112)"),
         data.data || "",
@@ -132,7 +132,7 @@ export const events = {
   ,
   "Transfer(address,address,uint256)":  {
     topic: abi.getEventTopic("Transfer(address,address,uint256)"),
-    decode(data: EvmEvent): TransferAddressAddressUint256Event {
+    decode(data: EvmEvent): Transfer0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("Transfer(address,address,uint256)"),
         data.data || "",

@@ -2,7 +2,7 @@ import * as ethers from "ethers";
 
 export const abi = new ethers.utils.Interface(getJsonAbi());
 
-export interface PairCreatedAddressAddressAddressUint256Event {
+export interface PairCreated0Event {
   token0: string;
   token1: string;
   pair: string;
@@ -17,7 +17,7 @@ export interface EvmEvent {
 export const events = {
   "PairCreated(address,address,address,uint256)":  {
     topic: abi.getEventTopic("PairCreated(address,address,address,uint256)"),
-    decode(data: EvmEvent): PairCreatedAddressAddressAddressUint256Event {
+    decode(data: EvmEvent): PairCreated0Event {
       const result = abi.decodeEventLog(
         abi.getEvent("PairCreated(address,address,address,uint256)"),
         data.data || "",
