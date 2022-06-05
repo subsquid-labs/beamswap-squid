@@ -40,8 +40,8 @@ export class Token {
   @Column_("numeric", {nullable: false})
   totalLiquidity!: number
 
-  @Column_("numeric", {nullable: true})
-  derivedETH!: number | undefined | null
+  @Column_("numeric", {nullable: false})
+  derivedETH!: number
 
   @OneToMany_(() => TokenDayData, e => e.token)
   tokenDayData!: TokenDayData[]

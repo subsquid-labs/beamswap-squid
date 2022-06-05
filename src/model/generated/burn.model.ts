@@ -26,8 +26,8 @@ export class Burn {
   @Column_("numeric", {nullable: false})
   liquidity!: number
 
-  @Column_("bytea", {nullable: true})
-  sender!: Uint8Array | undefined | null
+  @Column_("text", {nullable: true})
+  sender!: string | undefined | null
 
   @Column_("numeric", {nullable: true})
   amount0!: number | undefined | null
@@ -35,8 +35,8 @@ export class Burn {
   @Column_("numeric", {nullable: true})
   amount1!: number | undefined | null
 
-  @Column_("bytea", {nullable: true})
-  to!: Uint8Array | undefined | null
+  @Column_("text", {nullable: true})
+  to!: string | undefined | null
 
   @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: true})
   logIndex!: bigint | undefined | null
@@ -47,8 +47,8 @@ export class Burn {
   @Column_("bool", {nullable: false})
   needsComplete!: boolean
 
-  @Column_("bytea", {nullable: true})
-  feeTo!: Uint8Array | undefined | null
+  @Column_("text", {nullable: true})
+  feeTo!: string | undefined | null
 
   @Column_("numeric", {nullable: true})
   feeLiquidity!: number | undefined | null

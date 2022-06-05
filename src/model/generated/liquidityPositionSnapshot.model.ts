@@ -1,4 +1,5 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
+import * as marshal from "./marshal"
 import {LiquidityPosition} from "./liquidityPosition.model"
 import {User} from "./user.model"
 import {Pair} from "./pair.model"
@@ -16,11 +17,11 @@ export class LiquidityPositionSnapshot {
   @ManyToOne_(() => LiquidityPosition, {nullable: false})
   liquidityPosition!: LiquidityPosition
 
-  @Column_("int4", {nullable: false})
-  timestamp!: number
+  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
+  timestamp!: bigint
 
-  @Column_("int4", {nullable: false})
-  block!: number
+  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
+  block!: bigint
 
   @Index_()
   @ManyToOne_(() => User, {nullable: false})

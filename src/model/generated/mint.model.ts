@@ -23,14 +23,14 @@ export class Mint {
   @ManyToOne_(() => Pair, {nullable: false})
   pair!: Pair
 
-  @Column_("bytea", {nullable: false})
-  to!: Uint8Array
+  @Column_("text", {nullable: false})
+  to!: string
 
   @Column_("numeric", {nullable: false})
   liquidity!: number
 
-  @Column_("bytea", {nullable: true})
-  sender!: Uint8Array | undefined | null
+  @Column_("text", {nullable: true})
+  sender!: string | undefined | null
 
   @Column_("numeric", {nullable: true})
   amount0!: number | undefined | null
@@ -44,8 +44,8 @@ export class Mint {
   @Column_("numeric", {nullable: true})
   amountUSD!: number | undefined | null
 
-  @Column_("bytea", {nullable: true})
-  feeTo!: Uint8Array | undefined | null
+  @Column_("text", {nullable: true})
+  feeTo!: string | undefined | null
 
   @Column_("numeric", {nullable: true})
   feeLiquidity!: number | undefined | null

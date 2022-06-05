@@ -17,11 +17,11 @@ export class Transaction {
   timestamp!: bigint
 
   @Column_("text", {array: true, nullable: false})
-  mints!: (string | undefined | null)[]
+  mints!: (string)[]
 
   @Column_("text", {array: true, nullable: false})
-  burns!: (string | undefined | null)[]
+  burns!: (string)[]
 
   @Column_("text", {array: true, nullable: false})
-  swaps!: (string | undefined | null)[]
+  swaps!: (string)[]
 }
