@@ -1,16 +1,19 @@
-import { EvmLogHandlerContext } from '@subsquid/substrate-evm-processor'
-import { Bundle, Pair, UniswapFactory } from '../model'
+import { EvmLogHandlerContext, Store } from '@subsquid/substrate-evm-processor'
+import { Bundle, Pair, Token, UniswapFactory } from '../model'
 import * as factoryAbi from '../types/abi/factory'
-import { FACTORY_ADDRESS, ZERO_BD, ZERO_BI } from '../consts'
-import { getToken } from './helpers'
+import { ZERO_BD, ZERO_BI } from '../consts'
+import { createToken } from './helpers'
+import { getAddress } from 'ethers/lib/utils'
 
 export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
+    const contractAddress = getAddress(ctx.contractAddress)
+
     const event = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(ctx)
     // load factory (create if first exchange)
-    let factory = await ctx.store.get(UniswapFactory, FACTORY_ADDRESS)
+    let factory = await ctx.store.findOne(UniswapFactory, contractAddress)
     if (!factory) {
         factory = new UniswapFactory({
-            id: FACTORY_ADDRESS,
+            id: contractAddress,
             pairCount: 0,
             totalVolumeETH: ZERO_BD,
             totalLiquidityETH: ZERO_BD,
@@ -55,8 +58,19 @@ export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
         token0Price: ZERO_BD,
         token1Price: ZERO_BD,
     })
+
     await ctx.store.save(pair)
 
     // if (!knownContracts.indexOf(event.pair))
     //   throw new Error(`Unknown new pair contract address ${event.pair}`);
+}
+
+export async function getToken(store: Store, address: string): Promise<Token> {
+    let token = await store.get(Token, address)
+    if (!token) {
+        token = await createToken(address)
+        await store.save(token)
+    }
+
+    return token
 }

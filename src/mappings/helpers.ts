@@ -1,8 +1,17 @@
 import assert from 'assert'
-import { Store } from '@subsquid/substrate-processor'
+import { Store, SubstrateBlock } from '@subsquid/substrate-processor'
 import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair } from '../model'
 import { getErc20Contract, getErc20NameBytesContract } from '../contract'
-import { ZERO_BD, ZERO_BI } from '../consts'
+import { ONE_BI, ZERO_BD, ZERO_BI } from '../consts'
+import { BigNumber } from 'ethers'
+
+export function convertTokenToDecimal(amount: BigNumber, decimals: bigint): number {
+    let divider = 1n
+    for (let i = 0; i < decimals; i++) {
+        divider *= 10n
+    }
+    return amount.div(divider).toNumber()
+}
 
 export async function fetchTokenSymbol(tokenAddress: string): Promise<string> {
     try {
@@ -52,75 +61,62 @@ export async function fetchTokenDecimals(tokenAddress: string): Promise<bigint> 
     return BigInt(decimalsResult)
 }
 
-// export function createLiquidityPosition(
-//   exchange: Address,
-//   user: Address
-// ): LiquidityPosition {
-//   let id = exchange.toHexString().concat("-").concat(user.toHexString());
-//   let liquidityTokenBalance = LiquidityPosition.load(id);
-//   if (liquidityTokenBalance === null) {
-//     let pair = Pair.load(exchange.toHexString());
-//     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI);
-//     liquidityTokenBalance = new LiquidityPosition(id);
-//     liquidityTokenBalance.liquidityTokenBalance = ZERO_BD;
-//     liquidityTokenBalance.pair = exchange.toHexString();
-//     liquidityTokenBalance.user = user.toHexString();
-//     liquidityTokenBalance.save();
-//     pair.save();
-//   }
-//   if (liquidityTokenBalance === null)
-//     log.error("LiquidityTokenBalance is null", [id]);
-//   return liquidityTokenBalance as LiquidityPosition;
-// }
+interface LiquidityPositionData {
+    pair: Pair
+    user: User
+}
+
+export function createLiquidityPosition(data: LiquidityPositionData): LiquidityPosition {
+    const { pair, user } = data
+
+    return new LiquidityPosition({
+        id: `${pair.id}-${user.id}`,
+        liquidityTokenBalance: ZERO_BD,
+        pair,
+        user,
+    })
+}
 
 export function createUser(address: string): User {
     return new User({
         id: address,
         usdSwapped: ZERO_BD,
-        liquidityPositions: [],
     })
 }
 
-export async function getUser(store: Store, address: string): Promise<User> {
-    let user = await store.get(User, address)
-    if (!user) {
-        user = createUser(address)
-        await store.save(user)
-    }
-
-    return user
+interface LiquiditySnapshotData {
+    position: LiquidityPosition
+    block: SubstrateBlock
+    bundle: Bundle
+    pair: Pair
+    user: User
 }
 
-// export function createLiquiditySnapshot(
-//   position: LiquidityPosition,
-//   event: EthereumEvent
-// ): void {
-//   let timestamp = event.block.timestamp.toI32();
-//   let bundle = Bundle.load("1");
-//   let pair = Pair.load(position.pair);
-//   let token0 = Token.load(pair.token0);
-//   let token1 = Token.load(pair.token1);
+export function createLiquiditySnapshot(data: LiquiditySnapshotData): LiquidityPositionSnapshot {
+    const { position, block, bundle, pair, user } = data
 
-//   // create new snapshot
-//   let snapshot = new LiquidityPositionSnapshot(
-//     position.id.concat(timestamp.toString())
-//   );
-//   snapshot.liquidityPosition = position.id;
-//   snapshot.timestamp = timestamp;
-//   snapshot.block = event.block.number.toI32();
-//   snapshot.user = position.user;
-//   snapshot.pair = position.pair;
-//   snapshot.token0PriceUSD = token0.derivedETH.times(bundle.ethPrice);
-//   snapshot.token1PriceUSD = token1.derivedETH.times(bundle.ethPrice);
-//   snapshot.reserve0 = pair.reserve0;
-//   snapshot.reserve1 = pair.reserve1;
-//   snapshot.reserveUSD = pair.reserveUSD;
-//   snapshot.liquidityTokenTotalSupply = pair.totalSupply;
-//   snapshot.liquidityTokenBalance = position.liquidityTokenBalance;
-//   snapshot.liquidityPosition = position.id;
-//   snapshot.save();
-//   position.save();
-// }
+    const token0 = pair.token0
+    const token1 = pair.token1
+
+    // create new snapshot
+    const snapshot = new LiquidityPositionSnapshot({
+        id: `${position.id}-${block.timestamp}`,
+        liquidityPosition: position,
+        timestamp: BigInt(block.timestamp),
+        block: BigInt(block.height),
+        user,
+        pair,
+        token0PriceUSD: token0.derivedETH * bundle.ethPrice,
+        token1PriceUSD: token1.derivedETH * bundle.ethPrice,
+        reserve0: pair.reserve0,
+        reserve1: pair.reserve1,
+        reserveUSD: pair.reserveUSD,
+        liquidityTokenTotalSupply: pair.totalSupply,
+        liquidityTokenBalance: position.liquidityTokenBalance,
+    })
+
+    return snapshot
+}
 
 export async function createToken(address: string): Promise<Token> {
     // fetch info if null
@@ -145,14 +141,4 @@ export async function createToken(address: string): Promise<Token> {
         // allPairs: [],
         txCount: ZERO_BI,
     })
-}
-
-export async function getToken(store: Store, address: string): Promise<Token> {
-    let token = await store.get(Token, address)
-    if (!token) {
-        token = await createToken(address)
-        await store.save(token)
-    }
-
-    return token
 }
