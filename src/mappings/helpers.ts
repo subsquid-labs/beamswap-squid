@@ -1,43 +1,36 @@
 import assert from 'assert'
-import { Store, SubstrateBlock } from '@subsquid/substrate-processor'
-import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair } from '../model'
-import { getErc20Contract, getErc20NameBytesContract } from '../contract'
-import { ONE_BI, ZERO_BD, ZERO_BI } from '../consts'
-import { BigNumber } from 'ethers'
+import { User, Token, LiquidityPosition, Pair } from '../model'
+import { createErc20Contract, createErc20NameBytesContract, createErc20SymbolBytesContract } from '../contract'
+import { Contract, providers } from 'ethers'
+import { addTimeout } from '@subsquid/util-timeout'
+import bigDecimal from 'js-big-decimal'
+import { CHAIN_NODE } from '../consts'
 
-export function convertTokenToDecimal(amount: BigNumber, decimals: bigint): number {
-    let divider = 1n
-    for (let i = 0; i < decimals; i++) {
-        divider *= 10n
-    }
-    return amount.div(divider).toNumber()
+export function convertTokenToDecimal(amount: bigint, decimals: number): bigDecimal {
+    return new bigDecimal(bigDecimal.divide(amount.toString(), Math.pow(10, decimals).toString(), decimals))
 }
 
-export async function fetchTokenSymbol(tokenAddress: string): Promise<string> {
+async function fetchTokenSymbol(contract: Contract, contractSympolBytes: Contract): Promise<string> {
     try {
-        const contract = getErc20Contract(tokenAddress)
         const symbolResult = await contract.symbol()
         assert(typeof symbolResult === 'string')
 
         return symbolResult
     } catch (err) {
-        const contractNameBytes = getErc20NameBytesContract(tokenAddress)
-        const symbolResultBytes = await contractNameBytes.symbol()
+        const symbolResultBytes = await contractSympolBytes.symbol()
         assert(Buffer.isBuffer(symbolResultBytes))
 
         return symbolResultBytes.toString('ascii')
     }
 }
 
-export async function fetchTokenName(tokenAddress: string): Promise<string> {
+async function fetchTokenName(contract: Contract, contractNameBytes: Contract): Promise<string> {
     try {
-        const contract = getErc20Contract(tokenAddress)
         const nameResult = await contract.name()
         assert(typeof nameResult === 'string')
 
         return nameResult
     } catch (err) {
-        const contractNameBytes = getErc20NameBytesContract(tokenAddress)
         const nameResultBytes = await contractNameBytes.name()
         assert(Buffer.isBuffer(nameResultBytes))
 
@@ -45,20 +38,18 @@ export async function fetchTokenName(tokenAddress: string): Promise<string> {
     }
 }
 
-export async function fetchTokenTotalSupply(tokenAddress: string): Promise<bigint> {
-    const contract = getErc20Contract(tokenAddress)
+async function fetchTokenTotalSupply(contract: Contract): Promise<bigint> {
     const totalSupplyResult = (await contract.totalSupply())?.toBigInt()
     assert(typeof totalSupplyResult === 'bigint')
 
     return totalSupplyResult
 }
 
-export async function fetchTokenDecimals(tokenAddress: string): Promise<bigint> {
-    const contract = getErc20Contract(tokenAddress)
+async function fetchTokenDecimals(contract: Contract): Promise<number> {
     const decimalsResult = await contract.decimals()
     assert(typeof decimalsResult === 'number')
 
-    return BigInt(decimalsResult)
+    return decimalsResult
 }
 
 interface LiquidityPositionData {
@@ -71,7 +62,7 @@ export function createLiquidityPosition(data: LiquidityPositionData): LiquidityP
 
     return new LiquidityPosition({
         id: `${pair.id}-${user.id}`,
-        liquidityTokenBalance: ZERO_BD,
+        liquidityTokenBalance: new bigDecimal(0),
         pair,
         user,
     })
@@ -80,47 +71,54 @@ export function createLiquidityPosition(data: LiquidityPositionData): LiquidityP
 export function createUser(address: string): User {
     return new User({
         id: address,
-        usdSwapped: ZERO_BD,
+        usdSwapped: new bigDecimal(0),
     })
 }
 
-interface LiquiditySnapshotData {
-    position: LiquidityPosition
-    block: SubstrateBlock
-    bundle: Bundle
-    pair: Pair
-    user: User
-}
+// interface LiquiditySnapshotData {
+//     position: LiquidityPosition
+//     block: SubstrateBlock
+//     bundle: Bundle
+//     pair: Pair
+//     user: User
+// }
 
-export function createLiquiditySnapshot(data: LiquiditySnapshotData): LiquidityPositionSnapshot {
-    const { position, block, bundle, pair, user } = data
+// export function createLiquiditySnapshot(data: LiquiditySnapshotData): LiquidityPositionSnapshot {
+//     const { position, block, bundle, pair, user } = data
 
-    const token0 = pair.token0
-    const token1 = pair.token1
+//     const token0 = pair.token0
+//     const token1 = pair.token1
 
-    // create new snapshot
-    const snapshot = new LiquidityPositionSnapshot({
-        id: `${position.id}-${block.timestamp}`,
-        liquidityPosition: position,
-        timestamp: BigInt(block.timestamp),
-        block: BigInt(block.height),
-        user,
-        pair,
-        token0PriceUSD: token0.derivedETH * bundle.ethPrice,
-        token1PriceUSD: token1.derivedETH * bundle.ethPrice,
-        reserve0: pair.reserve0,
-        reserve1: pair.reserve1,
-        reserveUSD: pair.reserveUSD,
-        liquidityTokenTotalSupply: pair.totalSupply,
-        liquidityTokenBalance: position.liquidityTokenBalance,
-    })
+//     // create new snapshot
+//     const snapshot = new LiquidityPositionSnapshot({
+//         id: `${position.id}-${block.timestamp}`,
+//         liquidityPosition: position,
+//         timestamp: new Date(block.timestamp),
+//         block: BigInt(block.height),
+//         user,
+//         pair,
+//         token0PriceUSD: token0.derivedETH * bundle.ethPrice,
+//         token1PriceUSD: token1.derivedETH * bundle.ethPrice,
+//         reserve0: pair.reserve0,
+//         reserve1: pair.reserve1,
+//         reserveUSD: pair.reserveUSD,
+//         liquidityTokenTotalSupply: pair.totalSupply,
+//         liquidityTokenBalance: position.liquidityTokenBalance,
+//     })
 
-    return snapshot
-}
+//     return snapshot
+// }
 
 export async function createToken(address: string): Promise<Token> {
-    // fetch info if null
-    const decimals = await fetchTokenDecimals(address)
+    const provider = new providers.WebSocketProvider(CHAIN_NODE)
+    const contract = createErc20Contract(address).connect(provider)
+    const contractNameBytes = createErc20NameBytesContract(address).connect(provider)
+    const contractSympolBytes = createErc20SymbolBytesContract(address).connect(provider)
+
+    const symbol = await addTimeout(fetchTokenSymbol(contract, contractSympolBytes), 30)
+    const name = await addTimeout(fetchTokenName(contract, contractNameBytes), 30)
+    const totalSupply = await addTimeout(fetchTokenTotalSupply(contract), 30)
+    const decimals = await addTimeout(fetchTokenDecimals(contract), 30)
 
     // bail if we couldn't figure out the decimals
     if (!decimals) {
@@ -129,16 +127,16 @@ export async function createToken(address: string): Promise<Token> {
 
     return new Token({
         id: address,
-        symbol: await fetchTokenSymbol(address),
-        name: await fetchTokenName(address),
-        totalSupply: await fetchTokenTotalSupply(address),
+        symbol,
+        name,
+        totalSupply: convertTokenToDecimal(totalSupply, decimals),
         decimals,
-        derivedETH: ZERO_BD,
-        tradeVolume: ZERO_BD,
-        tradeVolumeUSD: ZERO_BD,
-        untrackedVolumeUSD: ZERO_BD,
-        totalLiquidity: ZERO_BD,
+        derivedETH: new bigDecimal(0),
+        tradeVolume: new bigDecimal(0),
+        tradeVolumeUSD: new bigDecimal(0),
+        untrackedVolumeUSD: new bigDecimal(0),
+        totalLiquidity: new bigDecimal(0),
         // allPairs: [],
-        txCount: ZERO_BI,
+        txCount: 0,
     })
 }

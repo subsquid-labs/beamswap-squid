@@ -1,16 +1,24 @@
-import { EvmLogHandlerContext, Store } from '@subsquid/substrate-evm-processor'
+import { EvmLogEvent, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Bundle, Pair, Token, UniswapFactory } from '../model'
 import * as factoryAbi from '../types/abi/factory'
-import { ZERO_BD, ZERO_BI } from '../consts'
 import { createToken } from './helpers'
 import { getAddress } from 'ethers/lib/utils'
+import { BatchContext } from '@subsquid/substrate-processor'
+import { Store } from '@subsquid/typeorm-store'
+import { pairContracts } from '../contract'
+import {ZERO_BD} from '../consts'
 
-export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
-    const contractAddress = getAddress(ctx.contractAddress)
+export async function handleNewPair(
+    ctx: BatchContext<Store, unknown>,
+    block: SubstrateBlock,
+    event: EvmLogEvent
+): Promise<void> {
+    const evmLog = event.args
+    const contractAddress = getAddress(evmLog.address)
 
-    const event = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(ctx)
+    const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(evmLog)
     // load factory (create if first exchange)
-    let factory = await ctx.store.findOne(UniswapFactory, contractAddress)
+    let factory = await ctx.store.get(UniswapFactory, contractAddress)
     if (!factory) {
         factory = new UniswapFactory({
             id: contractAddress,
@@ -20,7 +28,7 @@ export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
             totalVolumeUSD: ZERO_BD,
             untrackedVolumeUSD: ZERO_BD,
             totalLiquidityUSD: ZERO_BD,
-            txCount: ZERO_BI,
+            txCount: 0,
         })
 
         // create new bundle
@@ -34,17 +42,17 @@ export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
     await ctx.store.save(factory)
 
     // create the tokens
-    const token0 = await getToken(ctx.store, event.token0)
-    const token1 = await getToken(ctx.store, event.token1)
+    const token0 = await getToken(ctx.store, data.token0)
+    const token1 = await getToken(ctx.store, data.token1)
 
     const pair = new Pair({
-        id: event.pair,
+        id: data.pair,
         token0,
         token1,
-        liquidityProviderCount: ZERO_BI,
-        createdAtTimestamp: BigInt(ctx.substrate.block.timestamp),
-        createdAtBlockNumber: BigInt(ctx.substrate.block.height),
-        txCount: ZERO_BI,
+        liquidityProviderCount: 0,
+        createdAtTimestamp: new Date(block.timestamp),
+        createdAtBlockNumber: block.height,
+        txCount: 0,
         reserve0: ZERO_BD,
         reserve1: ZERO_BD,
         trackedReserveETH: ZERO_BD,
@@ -60,6 +68,10 @@ export async function handleNewPair(ctx: EvmLogHandlerContext): Promise<void> {
     })
 
     await ctx.store.save(pair)
+
+    pairContracts.add(data.pair)
+    // if (!pairContracts.has(pair.id)) throw new Error(`Unknow pair contract ${pair.id}`)
+
 
     // if (!knownContracts.indexOf(event.pair))
     //   throw new Error(`Unknown new pair contract address ${event.pair}`);

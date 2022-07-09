@@ -1,5 +1,6 @@
+import bigDecimal from "js-big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
-import * as marshal from "./marshal"
+import {bigDecimalTransformer} from "./marshal"
 
 @Entity_()
 export class UniswapFactory {
@@ -13,21 +14,21 @@ export class UniswapFactory {
   @Column_("int4", {nullable: false})
   pairCount!: number
 
-  @Column_("numeric", {nullable: false})
-  totalVolumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalVolumeUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  totalVolumeETH!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalVolumeETH!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  untrackedVolumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  untrackedVolumeUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  totalLiquidityUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalLiquidityUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  totalLiquidityETH!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalLiquidityETH!: bigDecimal
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  txCount!: bigint
+  @Column_("int4", {nullable: false})
+  txCount!: number
 }

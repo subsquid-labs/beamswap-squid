@@ -1,12 +1,11 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, OneToMany as OneToMany_} from "typeorm"
-import * as marshal from "./marshal"
 import {Token} from "./token.model"
-import {PairHourData} from "./pairHourData.model"
 import {LiquidityPosition} from "./liquidityPosition.model"
-import {LiquidityPositionSnapshot} from "./liquidityPositionSnapshot.model"
 import {Mint} from "./mint.model"
 import {Burn} from "./burn.model"
 import {Swap} from "./swap.model"
+import bigDecimal from "js-big-decimal"
+import {bigDecimalTransformer} from "./marshal"
 
 @Entity_()
 export class Pair {
@@ -18,69 +17,63 @@ export class Pair {
   id!: string
 
   @Index_()
-  @ManyToOne_(() => Token, {nullable: false})
+  @ManyToOne_(() => Token, {nullable: true})
   token0!: Token
 
   @Index_()
-  @ManyToOne_(() => Token, {nullable: false})
+  @ManyToOne_(() => Token, {nullable: true})
   token1!: Token
 
-  @Column_("numeric", {nullable: false})
-  reserve0!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  reserve0!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  reserve1!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  reserve1!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  totalSupply!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalSupply!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  reserveETH!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  reserveETH!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  reserveUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  reserveUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  trackedReserveETH!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  trackedReserveETH!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  token0Price!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  token0Price!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  token1Price!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  token1Price!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  volumeToken0!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  volumeToken0!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  volumeToken1!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  volumeToken1!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  volumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  volumeUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  untrackedVolumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  untrackedVolumeUSD!: bigDecimal
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  txCount!: bigint
+  @Column_("int4", {nullable: false})
+  txCount!: number
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  createdAtTimestamp!: bigint
+  @Column_("timestamp with time zone", {nullable: false})
+  createdAtTimestamp!: Date
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  createdAtBlockNumber!: bigint
+  @Column_("int4", {nullable: false})
+  createdAtBlockNumber!: number
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  liquidityProviderCount!: bigint
-
-  @OneToMany_(() => PairHourData, e => e.pair)
-  pairHourData!: PairHourData[]
+  @Column_("int4", {nullable: false})
+  liquidityProviderCount!: number
 
   @OneToMany_(() => LiquidityPosition, e => e.pair)
   liquidityPositions!: LiquidityPosition[]
-
-  @OneToMany_(() => LiquidityPositionSnapshot, e => e.pair)
-  liquidityPositionSnapshots!: LiquidityPositionSnapshot[]
 
   @OneToMany_(() => Mint, e => e.pair)
   mints!: Mint[]

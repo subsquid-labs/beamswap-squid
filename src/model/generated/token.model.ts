@@ -1,8 +1,7 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_} from "typeorm"
+import bigDecimal from "js-big-decimal"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
 import * as marshal from "./marshal"
-import {TokenDayData} from "./tokenDayData.model"
-import {PairDayData} from "./pairDayData.model"
-import {Pair} from "./pair.model"
+import {bigDecimalTransformer} from "./marshal"
 
 @Entity_()
 export class Token {
@@ -19,42 +18,27 @@ export class Token {
   @Column_("text", {nullable: false})
   name!: string
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  decimals!: bigint
+  @Column_("int4", {nullable: false})
+  decimals!: number
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  totalSupply!: bigint
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalSupply!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  tradeVolume!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  tradeVolume!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  tradeVolumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  tradeVolumeUSD!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  untrackedVolumeUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  untrackedVolumeUSD!: bigDecimal
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  txCount!: bigint
+  @Column_("int4", {nullable: false})
+  txCount!: number
 
-  @Column_("numeric", {nullable: false})
-  totalLiquidity!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  totalLiquidity!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  derivedETH!: number
-
-  @OneToMany_(() => TokenDayData, e => e.token)
-  tokenDayData!: TokenDayData[]
-
-  @OneToMany_(() => PairDayData, e => e.token0)
-  pairDayDataBase!: PairDayData[]
-
-  @OneToMany_(() => PairDayData, e => e.token1)
-  pairDayDataQuote!: PairDayData[]
-
-  @OneToMany_(() => Pair, e => e.token0)
-  pairBase!: Pair[]
-
-  @OneToMany_(() => Pair, e => e.token1)
-  pairQuote!: Pair[]
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  derivedETH!: bigDecimal
 }

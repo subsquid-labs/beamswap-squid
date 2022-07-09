@@ -1,7 +1,8 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
-import * as marshal from "./marshal"
 import {Transaction} from "./transaction.model"
 import {Pair} from "./pair.model"
+import bigDecimal from "js-big-decimal"
+import {bigDecimalTransformer} from "./marshal"
 
 @Entity_()
 export class Swap {
@@ -13,40 +14,40 @@ export class Swap {
   id!: string
 
   @Index_()
-  @ManyToOne_(() => Transaction, {nullable: false})
+  @ManyToOne_(() => Transaction, {nullable: true})
   transaction!: Transaction
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
-  timestamp!: bigint
+  @Column_("timestamp with time zone", {nullable: false})
+  timestamp!: Date
 
   @Index_()
-  @ManyToOne_(() => Pair, {nullable: false})
+  @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair
 
-  @Column_("bytea", {nullable: false})
-  sender!: Uint8Array
+  @Column_("text", {nullable: false})
+  sender!: string
 
-  @Column_("bytea", {nullable: false})
-  from!: Uint8Array
+  @Column_("text", {nullable: true})
+  from!: string | undefined | null
 
-  @Column_("numeric", {nullable: false})
-  amount0In!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  amount0In!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  amount1In!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  amount1In!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  amount0Out!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  amount0Out!: bigDecimal
 
-  @Column_("numeric", {nullable: false})
-  amount1Out!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  amount1Out!: bigDecimal
 
-  @Column_("bytea", {nullable: false})
-  to!: Uint8Array
+  @Column_("text", {nullable: false})
+  to!: string
 
-  @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: true})
-  logIndex!: bigint | undefined | null
+  @Column_("int4", {nullable: true})
+  logIndex!: number | undefined | null
 
-  @Column_("numeric", {nullable: false})
-  amountUSD!: number
+  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
+  amountUSD!: bigDecimal
 }

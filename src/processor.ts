@@ -1,100 +1,91 @@
-import { SubstrateEvmProcessor } from '@subsquid/substrate-evm-processor'
-import { lookupArchive } from '@subsquid/archive-registry'
+import { SubstrateBatchProcessor } from '@subsquid/substrate-processor'
 import * as factory from './types/abi/factory'
 import * as pair from './types/abi/pair'
 import { handleNewPair } from './mappings/factory'
 import { CHAIN_NODE, FACTORY_ADDRESS } from './consts'
-import { handleTransfer } from './mappings/core'
+import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
+import { TypeormDatabase } from '@subsquid/typeorm-store'
+import { knownPairAdresses, pairContracts } from './contract'
+import { getAddress } from '@ethersproject/address'
+import { saveAll } from './mappings/entityUtils'
 
-const processor = new SubstrateEvmProcessor('beamswap-squid')
+const PAIR_CREATED_TOPIC = factory.events['PairCreated(address,address,address,uint256)'].topic
 
-processor.setBatchSize(500)
+const database = new TypeormDatabase()
+const processor = new SubstrateBatchProcessor()
+    .setBatchSize(100)
+    .setBlockRange({ from: 199900 })
+    .setDataSource({
+        chain: CHAIN_NODE,
+        archive: 'https://moonbeam.archive.subsquid.io/graphql',
+    })
+    .setTypesBundle('moonbeam')
+    .addEvmLog(FACTORY_ADDRESS.toLowerCase(), {
+        filter: [PAIR_CREATED_TOPIC],
+    })
 
-processor.setDataSource({
-    chain: CHAIN_NODE,
-    archive: lookupArchive('moonbeam')[0].url,
+processor.addEvmLog('*', {
+    filter: [
+        [
+            pair.events['Transfer(address,address,uint256)'].topic,
+            pair.events['Sync(uint112,uint112)'].topic,
+            pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
+            pair.events['Mint(address,uint256,uint256)'].topic,
+            pair.events['Burn(address,uint256,uint256,address)'].topic,
+        ],
+    ],
 })
 
-processor.setTypesBundle('moonbeam')
-
-// processor.setBlockRange({
-//     from: 1483285,
-// })
-
-processor.addEvmLogHandler(
-    FACTORY_ADDRESS,
-    {
-        filter: [factory.events['PairCreated(address,address,address,uint256)'].topic],
-    },
-    handleNewPair
-)
-
-const pairContracts = [
-    '0x0f9cf146e871ed2c1af0503359f3250c33a401be',
-    '0x0fa6c6cdbe5c6b9a9cd5a0bd7847024441ae1884',
-    '0x12e90d1629735c4d88ed9e569ad8bc1953bd8a81',
-    '0x1575352ee631cbeaaaae0744b04578ab587243e6',
-    '0x1eb198bcc08a5a0ec2d6d47ffde19a68d2d137e3',
-    '0x0230937449E9aa94662098a4a751af97C23a8797',
-    '0x7c42BE5c88A2A4Eb6C5f0Cf3460A01C0f52CDB13',
-    '0xe3311f7d52f5f3e71167E41711F719E6c291FcFf',
-    '0x180609CB37FDF36a457086eFacEC5A011c371d21',
-    '0x2839905f837976E7aDD2AfFCf2a538f8b171Ad36'
-]
-
-pairContracts.forEach((contract) =>
-    processor.addEvmLogHandler(
-        contract,
-        {
-            filter: [pair.events['Transfer(address,address,uint256)'].topic],
-        },
-        handleTransfer
-    )
-)
-
-// export async function contractLogsHandler(
-//   ctx: EvmLogHandlerContext
-// ): Promise<void> {
-//   const transfer =
-//     erc721.events["Transfer(address,address,uint256)"].decode(ctx);
-
-//   let from = await ctx.store.findOne(Owner, transfer.from);
-//   if (from == null) {
-//     from = new Owner({ id: transfer.from, balance: 0n });
-//     await ctx.store.save(from);
-//   }
-
-//   let to = await ctx.store.findOne(Owner, transfer.to);
-//   if (to == null) {
-//     to = new Owner({ id: transfer.to, balance: 0n });
-//     await ctx.store.save(to);
-//   }
-
-//   let token = await ctx.store.findOne(Token, transfer.tokenId.toString());
-//   if (token == null) {
-//     token = new Token({
-//       id: transfer.tokenId.toString(),
-//       uri: await contract.tokenURI(transfer.tokenId),
-//       contract: await getContractEntity(ctx),
-//       owner: to,
-//     });
-//     await ctx.store.save(token);
-//   } else {
-//     token.owner = to;
-//     await ctx.store.save(token);
-//   }
-
-//   await ctx.store.save(
-//     new Transfer({
-//       id: ctx.txHash,
-//       token,
-//       from,
-//       to,
-//       timestamp: BigInt(ctx.substrate.block.timestamp),
-//       block: ctx.substrate.block.height,
-//       transactionHash: ctx.txHash,
+// for (const address of knownPairAdresses) {
+//     processor.addEvmLog(address.toLowerCase(), {
+//         filter: [
+//             [
+//                 pair.events['Transfer(address,address,uint256)'].topic,
+//                 pair.events['Sync(uint112,uint112)'].topic,
+//                 pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
+//                 pair.events['Mint(address,uint256,uint256)'].topic,
+//                 pair.events['Burn(address,uint256,uint256,address)'].topic,
+//             ],
+//         ],
 //     })
-//   );
 // }
 
-processor.run()
+processor.run(database, async (ctx) => {
+    await pairContracts.init(ctx.store)
+
+    for (const block of ctx.blocks) {
+        for (const item of block.items) {
+            if (item.kind === 'event') {
+                if (item.name === 'EVM.Log') {
+                    const event = item.event
+                    const contractAddress = getAddress(event.args.address)
+                    if (contractAddress === FACTORY_ADDRESS && event.args.topics[0] === PAIR_CREATED_TOPIC) {
+                        await handleNewPair(ctx, block.header, event)
+                    } else if (pairContracts.has(contractAddress)) {
+                        for (const topic of event.args.topics) {
+                            switch (topic) {
+                                case pair.events['Transfer(address,address,uint256)'].topic:
+                                    await handleTransfer(ctx, block.header, event)
+                                    break
+                                case pair.events['Sync(uint112,uint112)'].topic:
+                                    await handleSync(ctx, block.header, event)
+                                    break
+                                case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
+                                    await handleSwap(ctx, block.header, event)
+                                    break
+                                case pair.events['Mint(address,uint256,uint256)'].topic:
+                                    await handleMint(ctx, block.header, event)
+                                    break
+                                case pair.events['Burn(address,uint256,uint256,address)'].topic:
+                                    await handleBurn(ctx, block.header, event)
+                                    break
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    await saveAll(ctx.store)
+})

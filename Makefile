@@ -11,7 +11,7 @@ migrate:
 
 
 migration:
-	@npx sqd db:create-migration
+	@npx squid-typeorm-migration generate
 
 
 build:
@@ -19,22 +19,19 @@ build:
 
 
 codegen:
-	@npx sqd codegen
+	@npx squid-typeorm-codegen
 
 
-typegen: moonbeamVersions.json
-	@npx squid-substrate-typegen typegen.json
-
-
-moonbeamVersions.json:
+typegen:
 	@make explore
+	@npx squid-substrate-typegen ./typegen/typegen.json
 
 
 explore:
 	@npx squid-substrate-metadata-explorer \
 		--chain wss://wss.api.moonriver.moonbeam.network \
-		--archive https://moonriver-beta.indexer.gc.subsquid.io/v4/graphql \
-		--out moonbeamVersions.json
+		--archive https://moonriver.archive.subsquid.io/graphql \
+		--out ./typegen/versions.jsonl
 
 
 up:
@@ -45,4 +42,4 @@ down:
 	@docker-compose down
 
 
-.PHONY: process serve start codegen migration migrate up down
+.PHONY: process serve start codegen migration migrate up down typegen
