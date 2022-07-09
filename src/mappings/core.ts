@@ -44,7 +44,7 @@ export async function handleTransfer(
 
     const data = transferEventAbi.decode(event.args)
     // ignore initial transfers for first adds
-    if (data.to === ADDRESS_ZERO && data.value === BigNumber.from(80)) {
+    if (data.to === ADDRESS_ZERO && data.value.toBigInt() === 1000n) {
         return
     }
 
@@ -199,7 +199,7 @@ async function updateLiquidityPositionForAddress(store: Store, data: { pairId: s
     assert(pairContract != null)
 
     // const balance = (await addTimeout(pairContract.balanceOf(userId), 30)) as BigNumber
-    // position.liquidityTokenBalance = convertTokenToDecimal(balance.toBigInt(), 18)
+    // position.liquidityTokenBalance = convertTokenToDecimal(balance.toBigInt(), 132)
 }
 
 const syncEventAbi = pairAbi.events['Sync(uint112,uint112)']
@@ -232,9 +232,8 @@ export async function handleSync(
     pair.reserve0 = convertTokenToDecimal(data.reserve0.toBigInt(), Number(token0.decimals))
     pair.reserve1 = convertTokenToDecimal(data.reserve1.toBigInt(), Number(token1.decimals))
 
-    pair.token0Price = pair.reserve1.compareTo(ZERO_BD) !== 0 ? pair.reserve0.divide(pair.reserve1, 8) : ZERO_BD
-    pair.token1Price = pair.reserve0.compareTo(ZERO_BD) !== 0 ? pair.reserve1.divide(pair.reserve0, 8) : ZERO_BD
-
+    pair.token0Price = pair.reserve1.compareTo(ZERO_BD) !== 0 ? pair.reserve0.divide(pair.reserve1, 32) : ZERO_BD
+    pair.token1Price = pair.reserve0.compareTo(ZERO_BD) !== 0 ? pair.reserve1.divide(pair.reserve0, 32) : ZERO_BD
 
     // update ETH price now that reserves could have changed
 
@@ -248,7 +247,7 @@ export async function handleSync(
         bundle.ethPrice.compareTo(ZERO_BD) !== 0
             ? (await getTrackedLiquidityUSD(ctx.store, pair.reserve0, token0.id, pair.reserve1, token1.id)).divide(
                   bundle.ethPrice,
-                  8
+                  32
               )
             : ZERO_BD
 
@@ -411,12 +410,12 @@ export async function handleSwap(
     const derivedAmountETH = token1.derivedETH
         .multiply(amount1Total)
         .add(token0.derivedETH.multiply(amount0Total))
-        .divide(new bigDecimal(2), 8)
+        .divide(new bigDecimal(2), 32)
     const derivedAmountUSD = derivedAmountETH.multiply(bundle.ethPrice)
     // only accounts for volume through white listed tokens
     const trackedAmountUSD = await getTrackedVolumeUSD(bundle, amount0Total, token0, amount1Total, token1, pair)
     const trackedAmountETH =
-        bundle.ethPrice.compareTo(ZERO_BD) === 0 ? ZERO_BD : trackedAmountUSD.divide(bundle.ethPrice, 8)
+        bundle.ethPrice.compareTo(ZERO_BD) === 0 ? ZERO_BD : trackedAmountUSD.divide(bundle.ethPrice, 32)
     // update token0 global volume and token liquidity stats
     token0.tradeVolume = token0.tradeVolume.add(amount0Total)
     token0.tradeVolumeUSD = token0.tradeVolumeUSD.add(trackedAmountUSD)
@@ -469,7 +468,7 @@ export async function handleSwap(
         amount1Out,
         to: data.to,
         // from:
-        amountUSD: (trackedAmountUSD.compareTo(ZERO_BD) === 0 ? derivedAmountUSD : trackedAmountUSD).round(8),
+        amountUSD: (trackedAmountUSD.compareTo(ZERO_BD) === 0 ? derivedAmountUSD : trackedAmountUSD).round(32),
     })
 
     addSwap(swap)
