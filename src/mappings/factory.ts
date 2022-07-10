@@ -6,7 +6,7 @@ import { getAddress } from 'ethers/lib/utils'
 import { BatchContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import { pairContracts } from '../contract'
-import {ZERO_BD} from '../consts'
+import { ZERO_BD } from '../consts'
 
 export async function handleNewPair(
     ctx: BatchContext<Store, unknown>,
@@ -17,6 +17,7 @@ export async function handleNewPair(
     const contractAddress = getAddress(evmLog.address)
 
     const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(evmLog)
+
     // load factory (create if first exchange)
     let factory = await ctx.store.get(UniswapFactory, contractAddress)
     if (!factory) {
@@ -70,14 +71,9 @@ export async function handleNewPair(
     await ctx.store.save(pair)
 
     pairContracts.add(data.pair)
-    // if (!pairContracts.has(pair.id)) throw new Error(`Unknow pair contract ${pair.id}`)
-
-
-    // if (!knownContracts.indexOf(event.pair))
-    //   throw new Error(`Unknown new pair contract address ${event.pair}`);
 }
 
-export async function getToken(store: Store, address: string): Promise<Token> {
+async function getToken(store: Store, address: string): Promise<Token> {
     let token = await store.get(Token, address)
     if (!token) {
         token = await createToken(address)
