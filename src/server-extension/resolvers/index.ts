@@ -1,7 +1,6 @@
 import { Arg, Field, ObjectType, Query, Resolver, registerEnumType } from 'type-graphql'
 import 'reflect-metadata'
 import type { EntityManager } from 'typeorm'
-import { MoreThanOrEqual } from 'typeorm'
 import { Swap } from '../../model'
 import bigDecimal from 'js-big-decimal'
 
@@ -30,7 +29,6 @@ enum Range {
     DAY = '24 HOUR',
     WEEK = '7 DAY',
     MONTH = '30 DAY',
-    YEAR = '365 DAY',
 }
 
 registerEnumType(Order, { name: 'Order' })
@@ -46,17 +44,17 @@ export class TradersResolver {
         limit: number,
         @Arg('offset', { nullable: true, defaultValue: 0 })
         offset: number,
-        @Arg('orderDirection', () => Order, { nullable: true, defaultValue: Order.DESC })
-        orderDirection: Order,
-        @Arg('dateRange', () => Range, { nullable: false, defaultValue: Range.DAY })
-        dateRange: Range
+        @Arg('order', () => Order, { nullable: true, defaultValue: Order.DESC })
+        order: Order,
+        @Arg('range', () => Range, { nullable: false })
+        range: Range
     ): Promise<SwapperObject[]> {
         console.log(new Date(Date.now()), 'Query users top')
 
-        const result = await this.getTop(dateRange)
+        const result = await this.getTop(range)
 
         return result.users
-            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD))
+            .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1))
             .slice(offset, offset + (limit != null ? limit : result.users.length))
     }
 
@@ -66,17 +64,17 @@ export class TradersResolver {
         limit: number,
         @Arg('offset', { nullable: true, defaultValue: 0 })
         offset: number,
-        @Arg('orderDirection', () => Order, { nullable: true, defaultValue: Order.DESC })
-        orderDirection: Order,
-        @Arg('dateRange', () => Range, { nullable: false, defaultValue: Range.DAY })
-        dateRange: Range
+        @Arg('order', () => Order, { nullable: true, defaultValue: Order.DESC })
+        order: Order,
+        @Arg('range', () => Range, { nullable: false, defaultValue: Range.DAY })
+        range: Range
     ): Promise<SwapperObject[]> {
         console.log(new Date(Date.now()), 'Query pairs top')
 
-        const result = await this.getTop(dateRange)
+        const result = await this.getTop(range)
 
         return result.pairs
-            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD))
+            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD) * (order === Order.DESC ? -1 : 1))
             .slice(offset, offset + (limit != null ? limit : result.pairs.length))
     }
 
@@ -110,8 +108,6 @@ export class TradersResolver {
                 amount_usd: string
             }[] = await repository.query(query)
 
-            console.table(result)
-
             for (const data of result) {
                 let user = users.get(data.user)
                 if (user == null) {
@@ -141,8 +137,6 @@ export class TradersResolver {
 
                 lastId = data.id
             }
-
-            console.log(query)
 
             if (result.length < batchSize) break
         }
