@@ -88,34 +88,36 @@ export class TradersResolver {
 
         const batchSize = 10000
 
-        for await (const data of this.query(range, batchSize, lastId)) {
-            let user = users.get(data.user)
-            if (user == null) {
-                user = new SwapperObject({
-                    id: data.user,
-                    amountUSD: '0',
-                    swapsCount: 0,
-                })
-                users.set(user.id, user)
+        for await (const query of this.query(range, batchSize, lastId)) {
+            for (const data of query) {
+                let user = users.get(data.user)
+                if (user == null) {
+                    user = new SwapperObject({
+                        id: data.user,
+                        amountUSD: '0',
+                        swapsCount: 0,
+                    })
+                    users.set(user.id, user)
+                }
+
+                user.amountUSD = bigDecimal.add(user.amountUSD, data.amount_usd)
+                user.swapsCount += 1
+
+                let pair = pairs.get(data.pair)
+                if (pair == null) {
+                    pair = new SwapperObject({
+                        id: data.pair,
+                        amountUSD: '0',
+                        swapsCount: 0,
+                    })
+                    pairs.set(pair.id, pair)
+                }
+
+                pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
+                pair.swapsCount += 1
+
+                lastId = data.id
             }
-
-            user.amountUSD = bigDecimal.add(user.amountUSD, data.amount_usd)
-            user.swapsCount += 1
-
-            let pair = pairs.get(data.pair)
-            if (pair == null) {
-                pair = new SwapperObject({
-                    id: data.pair,
-                    amountUSD: '0',
-                    swapsCount: 0,
-                })
-                pairs.set(pair.id, pair)
-            }
-
-            pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
-            pair.swapsCount += 1
-
-            lastId = data.id
         }
 
         return { pairs: [...pairs.values()], users: [...users.values()] }
@@ -142,7 +144,7 @@ export class TradersResolver {
                 amount_usd: string
             }[] = await repository.query(query)
 
-            for (const r of result) yield r
+            yield result
 
             if (result.length < batchSize) break
         }
