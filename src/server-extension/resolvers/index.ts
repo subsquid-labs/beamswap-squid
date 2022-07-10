@@ -60,7 +60,7 @@ export class TradersResolver {
         while (true) {
             const query = `
                 SELECT
-                    id, sender, amount_usd
+                    id, "to" as user, amount_usd
                 FROM swap
                 WHERE
                     timestamp >= NOW() - INTERVAL '${dateRange}'
@@ -70,15 +70,15 @@ export class TradersResolver {
 
             const manager = await this.tx()
             const repository = manager.getRepository(Swap)
-            const result: { id: string; sender: string; amount_usd: string }[] = await repository.query(query)
+            const result: { id: string; user: string; amount_usd: string }[] = await repository.query(query)
 
             if (result.length === 0) break
 
             for (const data of result) {
-                let swapper = swappers.get(data.sender)
+                let swapper = swappers.get(data.user)
                 if (swapper == null) {
                     swapper = new SwapperObject({
-                        id: data.sender,
+                        id: data.user,
                         amountUSD: '0',
                         swapsCount: 0,
                     })
