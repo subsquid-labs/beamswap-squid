@@ -1,8 +1,7 @@
 import { Pair, Token, Bundle } from '../model'
-import { ZERO_BD, ONE_BD, ADDRESS_ZERO } from '../consts'
-import assert from 'assert'
+import { ZERO_BD, ONE_BD } from '../consts'
 import { Store } from '@subsquid/typeorm-store'
-import { getBundle, getPair } from './entityUtils'
+import { getBundle, getPair, getPairByTokens } from './entityUtils'
 import { getToken } from './entityUtils'
 import bigDecimal from 'js-big-decimal'
 
@@ -29,32 +28,6 @@ const MINIMUM_USD_THRESHOLD_NEW_PAIRS = new bigDecimal(3000)
 // minimum liquidity for price to get tracked
 const MINIMUM_LIQUIDITY_THRESHOLD_ETH = new bigDecimal(5)
 
-const pairsAdressesCache: Map<string, string> = new Map()
-
-async function getPairAddress(store: Store, token0: string, token1: string) {
-    let address = pairsAdressesCache.get(`${token0}-${token1}`)
-    if (!address) {
-        address = pairsAdressesCache.get(`${token1}-${token0}`)
-        if (!address) {
-            address = (
-                await store.get(Pair, {
-                    where: [
-                        { token0: { id: token0 }, token1: { id: token1 } },
-                        { token0: { id: token1 }, token1: { id: token0 } },
-                    ],
-                    relations: {
-                        token0: true,
-                        token1: true,
-                    },
-                })
-            )?.id
-            if (address) pairsAdressesCache.set(`${token0}-${token1}`, address)
-        }
-    }
-
-    return address
-}
-
 /**
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
@@ -65,26 +38,19 @@ export async function findEthPerToken(store: Store, token: Token): Promise<bigDe
     }
     // loop through whitelist and check if paired with any
     for (let i = 0; i < WHITELIST.length; ++i) {
-        try {
-            const pairAddress = await getPairAddress(store, token.id, WHITELIST[i])
-            assert(typeof pairAddress === 'string')
+        const pair = await getPairByTokens(store, token.id, WHITELIST[i])
 
-            if (pairAddress === ADDRESS_ZERO) continue
+        if (!pair) continue
 
-            const pair = await getPair(store, pairAddress)
+        if (pair.reserveETH.compareTo(MINIMUM_LIQUIDITY_THRESHOLD_ETH) <= 0) continue
 
-            if (pair.reserveETH.compareTo(MINIMUM_LIQUIDITY_THRESHOLD_ETH) <= 0) continue
-
-            if (pair.token0.id === token.id) {
-                const token1 = await getToken(store, pair.token1.id)
-                return pair.token1Price.multiply(token1.derivedETH) // return token1 per our token * Eth per token 1
-            }
-            if (pair.token1.id === token.id) {
-                const token0 = await getToken(store, pair.token0.id)
-                return pair.token0Price.multiply(token0.derivedETH) // return token0 per our token * ETH per token 0
-            }
-        } catch (e) {
-            continue
+        if (pair.token0.id === token.id) {
+            const token1 = await getToken(store, pair.token1.id)
+            return pair.token1Price.multiply(token1.derivedETH) // return token1 per our token * Eth per token 1
+        }
+        if (pair.token1.id === token.id) {
+            const token0 = await getToken(store, pair.token0.id)
+            return pair.token0Price.multiply(token0.derivedETH) // return token0 per our token * ETH per token 0
         }
     }
     return ZERO_BD // nothing was found return 0

@@ -3,7 +3,6 @@ import { ADDRESS_ZERO, ZERO_BD } from '../consts'
 import { Transaction, Mint, Burn, Swap } from '../model'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import * as pairAbi from '../types/abi/pair'
-import { BigNumber } from 'ethers'
 import { convertTokenToDecimal, createLiquidityPosition } from './helpers'
 import assert from 'assert'
 import { getAddress } from 'ethers/lib/utils'
@@ -26,7 +25,6 @@ import {
     addBurn,
     getToken,
 } from './entityUtils'
-import { addTimeout } from '@subsquid/util-timeout'
 import bigDecimal from 'js-big-decimal'
 
 async function isMintComplete(store: Store, mintId: string): Promise<boolean> {

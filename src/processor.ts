@@ -5,7 +5,7 @@ import { handleNewPair } from './mappings/factory'
 import { CHAIN_NODE, FACTORY_ADDRESS } from './consts'
 import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
 import { TypeormDatabase } from '@subsquid/typeorm-store'
-import { knownPairAdresses, pairContracts } from './contract'
+import { pairContracts } from './contract'
 import { getAddress } from '@ethersproject/address'
 import { saveAll } from './mappings/entityUtils'
 

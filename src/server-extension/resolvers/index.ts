@@ -21,8 +21,8 @@ class SwapperObject {
 }
 
 enum Order {
-    DESC = 'DESC',
     ASC = 'ASC',
+    DESC = 'DESC',
 }
 
 enum Range {
@@ -49,7 +49,7 @@ export class TradersResolver {
         @Arg('range', () => Range, { nullable: false })
         range: Range
     ): Promise<SwapperObject[]> {
-        console.log(new Date(Date.now()), 'Query users top')
+        console.log(new Date(Date.now()), 'Query users top...')
 
         const result = await this.getTop(range)
 
@@ -69,7 +69,7 @@ export class TradersResolver {
         @Arg('range', () => Range, { nullable: false })
         range: Range
     ): Promise<SwapperObject[]> {
-        console.log(new Date(Date.now()), 'Query pairs top')
+        console.log(new Date(Date.now()), 'Query pairs top...')
 
         const result = await this.getTop(range)
 
@@ -78,23 +78,57 @@ export class TradersResolver {
             .slice(offset, offset + (limit != null ? limit : result.pairs.length))
     }
 
-    async getTop(dateRange: Range) {
+    private async getTop(range: Range) {
         const users: Map<string, SwapperObject> = new Map()
         const pairs: Map<string, SwapperObject> = new Map()
 
         let lastId: string | undefined
 
-        const now = Math.floor(Date.now() / 1000 / 60 / 60) * 60 * 60 * 1000
+        // const now = Math.floor(Date.now() / 1000 / 60 / 60) * 60 * 60 * 1000
 
         const batchSize = 10000
 
+        for await (const data of this.query(range, batchSize, lastId)) {
+            let user = users.get(data.user)
+            if (user == null) {
+                user = new SwapperObject({
+                    id: data.user,
+                    amountUSD: '0',
+                    swapsCount: 0,
+                })
+                users.set(user.id, user)
+            }
+
+            user.amountUSD = bigDecimal.add(user.amountUSD, data.amount_usd)
+            user.swapsCount += 1
+
+            let pair = pairs.get(data.pair)
+            if (pair == null) {
+                pair = new SwapperObject({
+                    id: data.pair,
+                    amountUSD: '0',
+                    swapsCount: 0,
+                })
+                pairs.set(pair.id, pair)
+            }
+
+            pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
+            pair.swapsCount += 1
+
+            lastId = data.id
+        }
+
+        return { pairs: [...pairs.values()], users: [...users.values()] }
+    }
+
+    private async *query(range: Range, batchSize: number, lastId?: string | undefined) {
         while (true) {
             const query = `
                 SELECT
                     id, amount_usd, pair_id as pair, "to" as user
                 FROM swap
                 WHERE
-                    timestamp >= NOW() - INTERVAL '${dateRange}'
+                    timestamp >= NOW() - INTERVAL '${range}'
                     ${lastId != null ? `AND id < '${lastId}'` : ``}
                 ORDER BY id DESC
                 LIMIT ${batchSize}`
@@ -108,39 +142,9 @@ export class TradersResolver {
                 amount_usd: string
             }[] = await repository.query(query)
 
-            for (const data of result) {
-                let user = users.get(data.user)
-                if (user == null) {
-                    user = new SwapperObject({
-                        id: data.user,
-                        amountUSD: '0',
-                        swapsCount: 0,
-                    })
-                    users.set(user.id, user)
-                }
-
-                user.amountUSD = bigDecimal.add(user.amountUSD, data.amount_usd)
-                user.swapsCount += 1
-
-                let pair = pairs.get(data.pair)
-                if (pair == null) {
-                    pair = new SwapperObject({
-                        id: data.pair,
-                        amountUSD: '0',
-                        swapsCount: 0,
-                    })
-                    pairs.set(pair.id, pair)
-                }
-
-                pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
-                pair.swapsCount += 1
-
-                lastId = data.id
-            }
+            for (const r of result) yield r
 
             if (result.length < batchSize) break
         }
-
-        return { pairs: [...pairs.values()], users: [...users.values()] }
     }
 }

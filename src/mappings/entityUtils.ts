@@ -170,7 +170,44 @@ export async function saveAll(store: Store) {
 
     await store.save([...users.values()])
     users.clear()
-    
+
     await store.save([...positions.values()])
     positions.clear()
+}
+
+const pairsAdressesCache: Map<string, string> = new Map()
+
+export async function getPairByTokens(store: Store, token0: string, token1: string) {
+    let address = pairsAdressesCache.get(`${token0}-${token1}`)
+    if (address) return await getPair(store, address)
+
+    address = pairsAdressesCache.get(`${token1}-${token0}`)
+    if (address) return await getPair(store, address)
+
+    address = [...pairs.values()].find(
+        (p) => (p.token0.id === token0 && p.token1.id === token1) || (p.token1.id === token0 && p.token0.id === token1)
+    )?.id
+    if (address) {
+        pairsAdressesCache.set(`${token0}-${token1}`, address)
+        return await getPair(store, address)
+    }
+
+    address = (
+        await store.get(Pair, {
+            where: [
+                { token0: { id: token0 }, token1: { id: token1 } },
+                { token0: { id: token1 }, token1: { id: token0 } },
+            ],
+            relations: {
+                token0: true,
+                token1: true,
+            },
+        })
+    )?.id
+    if (address) {
+        pairsAdressesCache.set(`${token0}-${token1}`, address)
+        return await getPair(store, address)
+    }
+
+    return undefined
 }

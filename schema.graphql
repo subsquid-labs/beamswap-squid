@@ -93,7 +93,7 @@ type Pair @entity {
 type User @entity {
   id: ID!
   liquidityPositions: [LiquidityPosition!] @derivedFrom(field: "user")
-  usdSwapped: String!
+  # usdSwapped: String!
 }
 
 type LiquidityPosition @entity {
