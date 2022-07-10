@@ -110,6 +110,8 @@ export class TradersResolver {
                 amount_usd: string
             }[] = await repository.query(query)
 
+            console.table(result)
+
             for (const data of result) {
                 let user = users.get(data.user)
                 if (user == null) {
