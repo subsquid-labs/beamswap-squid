@@ -236,13 +236,13 @@ export async function handleSync(
 
     bundle.ethPrice = await getEthPriceInUSD(ctx.store)
 
-    token0.derivedETH = await findEthPerToken(ctx.store, token0)
-    token1.derivedETH = await findEthPerToken(ctx.store, token1)
+    token0.derivedETH = await findEthPerToken(ctx.store, token0.id)
+    token1.derivedETH = await findEthPerToken(ctx.store, token1.id)
 
     // get tracked liquidity - will be 0 if neither is in whitelist
     const trackedLiquidityETH =
         bundle.ethPrice.compareTo(ZERO_BD) !== 0
-            ? (await getTrackedLiquidityUSD(ctx.store, pair.reserve0, token0.id, pair.reserve1, token1.id)).divide(
+            ? (await getTrackedLiquidityUSD(ctx.store, token0.id, pair.reserve0, token1.id, pair.reserve1)).divide(
                   bundle.ethPrice,
                   PRECISION
               )
@@ -410,7 +410,7 @@ export async function handleSwap(
         .divide(new bigDecimal(2), PRECISION)
     const derivedAmountUSD = derivedAmountETH.multiply(bundle.ethPrice)
     // only accounts for volume through white listed tokens
-    const trackedAmountUSD = await getTrackedVolumeUSD(bundle, amount0Total, token0, amount1Total, token1, pair)
+    const trackedAmountUSD = await getTrackedVolumeUSD(ctx.store, token0.id, amount0Total, token1.id, amount1Total)
     const trackedAmountETH =
         bundle.ethPrice.compareTo(ZERO_BD) === 0 ? ZERO_BD : trackedAmountUSD.divide(bundle.ethPrice, PRECISION)
     // update token0 global volume and token liquidity stats

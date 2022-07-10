@@ -1,9 +1,9 @@
-import { Pair, Token, Bundle } from '../model'
 import { ZERO_BD, ONE_BD, PRECISION } from '../consts'
 import { Store } from '@subsquid/typeorm-store'
 import { getBundle, getPair, getPairByTokens } from './entityUtils'
 import { getToken } from './entityUtils'
 import bigDecimal from 'js-big-decimal'
+import assert from 'assert'
 
 const WGLMR_ADDRESS = '0xAcc15dC74880C9944775448304B263D191c6077F' //Replace with wrapped glint
 const WGLMR_USDC_ADDRESS = '0xb929914B89584b4081C7966AC6287636F7EfD053' //replace with wglint usdc LP address
@@ -32,23 +32,23 @@ const MINIMUM_LIQUIDITY_THRESHOLD_ETH = new bigDecimal(5)
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
  **/
-export async function findEthPerToken(store: Store, token: Token): Promise<bigDecimal> {
-    if (token.id === WGLMR_ADDRESS) {
+export async function findEthPerToken(store: Store, tokenId: string): Promise<bigDecimal> {
+    if (tokenId === WGLMR_ADDRESS) {
         return ONE_BD
     }
     // loop through whitelist and check if paired with any
     for (let i = 0; i < WHITELIST.length; ++i) {
-        const pair = await getPairByTokens(store, token.id, WHITELIST[i])
+        const pair = await getPairByTokens(store, tokenId, WHITELIST[i])
 
         if (!pair) continue
 
         if (pair.reserveETH.compareTo(MINIMUM_LIQUIDITY_THRESHOLD_ETH) <= 0) continue
 
-        if (pair.token0.id === token.id) {
+        if (pair.token0.id === tokenId) {
             const token1 = await getToken(store, pair.token1.id)
             return pair.token1Price.multiply(token1.derivedETH) // return token1 per our token * Eth per token 1
         }
-        if (pair.token1.id === token.id) {
+        if (pair.token1.id === tokenId) {
             const token0 = await getToken(store, pair.token0.id)
             return pair.token0Price.multiply(token0.derivedETH) // return token0 per our token * ETH per token 0
         }
@@ -63,13 +63,20 @@ export async function findEthPerToken(store: Store, token: Token): Promise<bigDe
  * If neither is, return 0
  */
 export async function getTrackedVolumeUSD(
-    bundle: Bundle,
+    store: Store,
+    token0Id: string,
     tokenAmount0: bigDecimal,
-    token0: Token,
-    tokenAmount1: bigDecimal,
-    token1: Token,
-    pair: Pair
+    token1Id: string,
+    tokenAmount1: bigDecimal
 ): Promise<bigDecimal> {
+    const bundle = await getBundle(store)
+
+    const pair = await getPairByTokens(store, token0Id, token1Id)
+    assert(pair != null)
+
+    const token0 = await getToken(store, token0Id)
+    const token1 = await getToken(store, token1Id)
+
     const price0 = token0.derivedETH.multiply(bundle.ethPrice)
     const price1 = token1.derivedETH.multiply(bundle.ethPrice)
 
@@ -121,12 +128,15 @@ export async function getTrackedVolumeUSD(
  */
 export async function getTrackedLiquidityUSD(
     store: Store,
-    tokenAmount0: bigDecimal,
     token0Id: string,
-    tokenAmount1: bigDecimal,
-    token1Id: string
+    tokenAmount0: bigDecimal,
+    token1Id: string,
+    tokenAmount1: bigDecimal
 ): Promise<bigDecimal> {
     const bundle = await getBundle(store)
+
+    const pair = await getPairByTokens(store, token0Id, token1Id)
+    assert(pair != null)
 
     const token0 = await getToken(store, token0Id)
     const token1 = await getToken(store, token1Id)
