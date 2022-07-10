@@ -29,6 +29,7 @@ enum Range {
     DAY = '24 HOUR',
     WEEK = '7 DAY',
     MONTH = '30 DAY',
+    YEAR = '365 DAY',
 }
 
 registerEnumType(Order, { name: 'Order' })
@@ -82,13 +83,10 @@ export class TradersResolver {
         const users: Map<string, SwapperObject> = new Map()
         const pairs: Map<string, SwapperObject> = new Map()
 
-        let lastId: string | undefined
-
         // const now = Math.floor(Date.now() / 1000 / 60 / 60) * 60 * 60 * 1000
 
-        const batchSize = 10000
-
-        for await (const query of this.query(range, batchSize, lastId)) {
+        for await (const query of this.query(range, 10000)) {
+            console.log(query.length)
             for (const data of query) {
                 let user = users.get(data.user)
                 if (user == null) {
@@ -116,15 +114,18 @@ export class TradersResolver {
                 pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
                 pair.swapsCount += 1
 
-                lastId = data.id
             }
         }
 
         return { pairs: [...pairs.values()], users: [...users.values()] }
     }
 
-    private async *query(range: Range, batchSize: number, lastId?: string | undefined) {
+    private async *query(range: Range, batchSize: number) {
+        let lastId: string | undefined
+
         while (true) {
+            console.log(lastId)
+
             const query = `
                 SELECT
                     id, amount_usd, pair_id as pair, "to" as user
@@ -147,6 +148,8 @@ export class TradersResolver {
             yield result
 
             if (result.length < batchSize) break
+
+            lastId = result[result.length - 1].id
         }
     }
 }
