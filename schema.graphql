@@ -6,15 +6,15 @@ type UniswapFactory @entity {
   pairCount: Int!
 
   # total volume
-  totalVolumeUSD: String!
-  totalVolumeETH: String!
+  totalVolumeUSD: Float!
+  totalVolumeETH: Float!
 
   # untracked values - less confident USD scores
-  untrackedVolumeUSD: String!
+  untrackedVolumeUSD: Float!
 
   # total liquidity
-  totalLiquidityUSD: String!
-  totalLiquidityETH: String!
+  totalLiquidityUSD: Float!
+  totalLiquidityETH: Float!
 
   # transactions
   txCount: Int!
@@ -30,21 +30,21 @@ type Token @entity {
   decimals: Int!
 
   # used for other stats like marketcap
-  totalSupply: String!
+  totalSupply: Float!
 
   # token specific volume
-  tradeVolume: String!
-  tradeVolumeUSD: String!
-  untrackedVolumeUSD: String!
+  tradeVolume: Float!
+  tradeVolumeUSD: Float!
+  untrackedVolumeUSD: Float!
 
   # transactions across all pairs
   txCount: Int!
 
   # liquidity across all pairs
-  totalLiquidity: String!
+  totalLiquidity: Float!
 
   # derived prices
-  derivedETH: String!
+  derivedETH: Float!
 }
 
 type Pair @entity {
@@ -54,25 +54,25 @@ type Pair @entity {
   # mirrored from the smart contract
   token0: Token!
   token1: Token!
-  reserve0: String!
-  reserve1: String!
-  totalSupply: String!
+  reserve0: Float!
+  reserve1: Float!
+  totalSupply: Float!
 
   # derived liquidity
-  reserveETH: String!
-  reserveUSD: String!
+  reserveETH: Float!
+  reserveUSD: Float!
   # used for separating per pair reserves and global
-  trackedReserveETH: String!
+  trackedReserveETH: Float!
 
   # Price in terms of the asset pair
-  token0Price: String!
-  token1Price: String!
+  token0Price: Float!
+  token1Price: Float!
 
   # lifetime volume stats
-  volumeToken0: String!
-  volumeToken1: String!
-  volumeUSD: String!
-  untrackedVolumeUSD: String!
+  volumeToken0: Float!
+  volumeToken1: Float!
+  volumeUSD: Float!
+  untrackedVolumeUSD: Float!
   txCount: Int!
 
   # creation stats
@@ -175,19 +175,19 @@ type Swap @entity {
   # populated from the Swap event
   sender: String!
   from: String # the EOA that initiated the txn
-  amount0In: String!
-  amount1In: String!
-  amount0Out: String!
-  amount1Out: String!
+  amount0In: Float!
+  amount1In: Float!
+  amount0Out: Float!
+  amount1Out: Float!
   to: String!
   logIndex: Int
 
   # derived info
-  amountUSD: String!
+  amountUSD: Float!
 }
 
 # stores for USD calculations
 type Bundle @entity {
   id: ID!
-  ethPrice: String! # price of ETH usd
+  ethPrice: Float! # price of ETH usd
 }
