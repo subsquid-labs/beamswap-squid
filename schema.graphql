@@ -45,13 +45,6 @@ type Token @entity {
 
   # derived prices
   derivedETH: String!
-
-  # derived fields
-  # tokenDayData: [TokenDayData!]! @derivedFrom(field: "token")
-  # pairDayDataBase: [PairDayData!]! @derivedFrom(field: "token0")
-  # pairDayDataQuote: [PairDayData!]! @derivedFrom(field: "token1")
-  # pairBase: [Pair!]! @derivedFrom(field: "token0")
-  # pairQuote: [Pair!]! @derivedFrom(field: "token1")
 }
 
 type Pair @entity {
@@ -92,8 +85,8 @@ type Pair @entity {
   # pairHourData: [PairHourData!]! @derivedFrom(field: "pair")
   liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "pair")
   # liquidityPositionSnapshots: [LiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
-  mints: [Mint!]! @derivedFrom(field: "pair")
-  burns: [Burn!]! @derivedFrom(field: "pair")
+  # mints: [Mint!]! @derivedFrom(field: "pair")
+  # burns: [Burn!]! @derivedFrom(field: "pair")
   swaps: [Swap!]! @derivedFrom(field: "pair")
 }
 
@@ -110,23 +103,6 @@ type LiquidityPosition @entity {
   liquidityTokenBalance: String!
 }
 
-# # saved over time for return calculations, gets created and never updated
-# type LiquidityPositionSnapshot @entity {
-#   id: ID!
-#   liquidityPosition: LiquidityPosition!
-#   timestamp: DateTime! # saved for fast historical lookups
-#   block: BigInt! # saved for fast historical lookups
-#   user: User! # reference to user
-#   pair: Pair! # reference to pair
-#   token0PriceUSD: Int! # snapshot of token0 price
-#   token1PriceUSD: Int! # snapshot of token1 price
-#   reserve0: Int! # snapshot of pair token0 reserves
-#   reserve1: Int! # snapshot of pair token1 reserves
-#   reserveUSD: Int! # snapshot of pair reserves in USD
-#   liquidityTokenTotalSupply: Int! # snapshot of pool token supply
-#   liquidityTokenBalance: Int! # snapshot of users pool token balance
-# }
-
 type Transaction @entity {
   id: ID! # txn hash
   blockNumber: Int!
@@ -138,56 +114,56 @@ type Transaction @entity {
   swaps: [ID!]!
 }
 
-type Mint @entity {
-  # transaction hash + "-" + index in mints Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: DateTime! # need this to pull recent txns for specific token or pair
-  pair: Pair!
+# type Mint @entity {
+#   # transaction hash + "-" + index in mints Transaction array
+#   id: ID!
+#   transaction: Transaction!
+#   timestamp: DateTime! # need this to pull recent txns for specific token or pair
+#   pair: Pair!
 
-  # populated from the primary Transfer event
-  to: String!
-  liquidity: String!
+#   # populated from the primary Transfer event
+#   to: String!
+#   liquidity: String!
 
-  # populated from the Mint event
-  sender: String
-  amount0: String
-  amount1: String
-  logIndex: Int
-  # derived amount based on available prices of tokens
-  amountUSD: String
+#   # populated from the Mint event
+#   sender: String
+#   amount0: String
+#   amount1: String
+#   logIndex: Int
+#   # derived amount based on available prices of tokens
+#   amountUSD: String
 
-  # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: String
-  feeLiquidity: String
-}
+#   # optional fee fields, if a Transfer event is fired in _mintFee
+#   feeTo: String
+#   feeLiquidity: String
+# }
 
-type Burn @entity {
-  # transaction hash + "-" + index in mints Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: DateTime! # need this to pull recent txns for specific token or pair
-  pair: Pair!
+# type Burn @entity {
+#   # transaction hash + "-" + index in mints Transaction array
+#   id: ID!
+#   transaction: Transaction!
+#   timestamp: DateTime! # need this to pull recent txns for specific token or pair
+#   pair: Pair!
 
-  # populated from the primary Transfer event
-  liquidity: String!
+#   # populated from the primary Transfer event
+#   liquidity: String!
 
-  # populated from the Burn event
-  sender: String
-  amount0: String
-  amount1: String
-  to: String
-  logIndex: Int
-  # derived amount based on available prices of tokens
-  amountUSD: String
+#   # populated from the Burn event
+#   sender: String
+#   amount0: String
+#   amount1: String
+#   to: String
+#   logIndex: Int
+#   # derived amount based on available prices of tokens
+#   amountUSD: String
 
-  # mark uncomplete in ETH case
-  needsComplete: Boolean!
+#   # mark uncomplete in ETH case
+#   needsComplete: Boolean!
 
-  # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: String
-  feeLiquidity: String
-}
+#   # optional fee fields, if a Transfer event is fired in _mintFee
+#   feeTo: String
+#   feeLiquidity: String
+# }
 
 type Swap @entity {
   # transaction hash + "-" + index in swaps Transaction array
@@ -215,112 +191,3 @@ type Bundle @entity {
   id: ID!
   ethPrice: String! # price of ETH usd
 }
-
-# Data accumulated and condensed into day stats for all of Uniswap
-# type UniswapDayData @entity {
-#   id: ID! # timestamp rounded to current day by dividing by 86400
-#   date: Int!
-
-#   dailyVolumeETH: Int!
-#   dailyVolumeUSD: Int!
-#   dailyVolumeUntracked: Int!
-
-#   totalVolumeETH: Int!
-#   totalLiquidityETH: Int!
-#   totalVolumeUSD: Int! # Accumulate at each trade, not just calculated off whatever totalVolume is. making it more accurate as it is a live conversion
-#   totalLiquidityUSD: Int!
-
-#   txCount: Int!
-# }
-
-# type PairHourData @entity {
-#   id: ID!
-#   hourStartUnix: Int! # unix timestamp for start of hour
-#   pair: Pair!
-
-#   # reserves
-#   reserve0: Int!
-#   reserve1: Int!
-
-#   # total supply for LP historical returns
-#   totalSupply: Int!
-
-#   # derived liquidity
-#   reserveUSD: Int!
-
-#   # volume stats
-#   hourlyVolumeToken0: Int!
-#   hourlyVolumeToken1: Int!
-#   hourlyVolumeUSD: Int!
-#   hourlyTxns: BigInt!
-# }
-
-# # Data accumulated and condensed into day stats for each exchange
-# type PairDayData @entity {
-#   id: ID!
-#   date: Int!
-#   pairAddress: Bytes!
-#   token0: Token!
-#   token1: Token!
-
-#   # reserves
-#   reserve0: Int!
-#   reserve1: Int!
-
-#   # total supply for LP historical returns
-#   totalSupply: Int!
-
-#   # derived liquidity
-#   reserveUSD: Int!
-
-#   # volume stats
-#   dailyVolumeToken0: Int!
-#   dailyVolumeToken1: Int!
-#   dailyVolumeUSD: Int!
-#   dailyTxns: BigInt!
-# }
-
-# type TokenDayData @entity {
-#   id: ID!
-#   date: Int!
-#   token: Token!
-
-#   # volume stats
-#   dailyVolumeToken: Int!
-#   dailyVolumeETH: Int!
-#   dailyVolumeUSD: Int!
-#   dailyTxns: BigInt!
-
-#   # liquidity stats
-#   totalLiquidityToken: Int!
-#   totalLiquidityETH: Int!
-#   totalLiquidityUSD: Int!
-
-#   # price stats
-#   priceUSD: Int!
-# }
-
-# interface Swapper {
-#   id: ID
-#   usdSwapped: String
-# }
-
-# type swappersLastHour implements Swapper @entity {
-#   id: ID
-#   usdSwapped: String
-# }
-
-# type swappersCurrentHour implements Swapper @entity {
-#   id: ID
-#   usdSwapped: String
-# }
-
-# type swappersLastDay implements Swapper @entity {
-#   id: ID
-#   usdSwapped: String
-# }
-
-# type swappersCurrentHour implements Swapper @entity {
-#   id: ID
-#   usdSwapped: String
-# }

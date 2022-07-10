@@ -66,7 +66,7 @@ export class TradersResolver {
         offset: number,
         @Arg('order', () => Order, { nullable: true, defaultValue: Order.DESC })
         order: Order,
-        @Arg('range', () => Range, { nullable: false, defaultValue: Range.DAY })
+        @Arg('range', () => Range, { nullable: false })
         range: Range
     ): Promise<SwapperObject[]> {
         console.log(new Date(Date.now()), 'Query pairs top')
