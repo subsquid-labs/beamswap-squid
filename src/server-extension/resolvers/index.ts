@@ -51,52 +51,13 @@ export class TradersResolver {
         @Arg('dateRange', () => Range, { nullable: false, defaultValue: Range.DAY })
         dateRange: Range
     ): Promise<SwapperObject[]> {
-        const swappers: Map<string, SwapperObject> = new Map()
+        console.log(new Date(Date.now()), 'Query users top')
 
-        let lastId: string | undefined
+        const result = await this.getTop(dateRange)
 
-        const now = Math.floor(Date.now() / 1000 / 60 / 60) * 60 * 60 * 1000
-
-        while (true) {
-            const query = `
-                SELECT
-                    id, "to" as user, amount_usd
-                FROM swap
-                WHERE
-                    timestamp >= NOW() - INTERVAL '${dateRange}'
-                    ${lastId != null ? `AND id < '${lastId}'` : ``}
-                ORDER BY id DESC
-                LIMIT 10000`
-
-            const manager = await this.tx()
-            const repository = manager.getRepository(Swap)
-            const result: { id: string; user: string; amount_usd: string }[] = await repository.query(query)
-
-            if (result.length === 0) break
-
-            for (const data of result) {
-                let swapper = swappers.get(data.user)
-                if (swapper == null) {
-                    swapper = new SwapperObject({
-                        id: data.user,
-                        amountUSD: '0',
-                        swapsCount: 0,
-                    })
-                    swappers.set(swapper.id, swapper)
-                }
-
-                swapper.amountUSD = bigDecimal.add(swapper.amountUSD, data.amount_usd)
-                swapper.swapsCount += 1
-
-                lastId = data.id
-            }
-
-            console.log(query)
-        }
-
-        return [...swappers.values()]
+        return result.users
             .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD))
-            .slice(offset, offset + (limit != null ? limit : swappers.size))
+            .slice(offset, offset + (limit != null ? limit : result.users.length))
     }
 
     @Query(() => [SwapperObject])
@@ -110,51 +71,80 @@ export class TradersResolver {
         @Arg('dateRange', () => Range, { nullable: false, defaultValue: Range.DAY })
         dateRange: Range
     ): Promise<SwapperObject[]> {
-        const swappers: Map<string, SwapperObject> = new Map()
+        console.log(new Date(Date.now()), 'Query pairs top')
+
+        const result = await this.getTop(dateRange)
+
+        return result.pairs
+            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD))
+            .slice(offset, offset + (limit != null ? limit : result.pairs.length))
+    }
+
+    async getTop(dateRange: Range) {
+        const users: Map<string, SwapperObject> = new Map()
+        const pairs: Map<string, SwapperObject> = new Map()
 
         let lastId: string | undefined
 
         const now = Math.floor(Date.now() / 1000 / 60 / 60) * 60 * 60 * 1000
 
+        const batchSize = 10000
+
         while (true) {
             const query = `
                 SELECT
-                    id, amount_usd, pair_id
+                    id, amount_usd, pair_id as pair, "to" as user
                 FROM swap
                 WHERE
                     timestamp >= NOW() - INTERVAL '${dateRange}'
                     ${lastId != null ? `AND id < '${lastId}'` : ``}
                 ORDER BY id DESC
-                LIMIT 10000`
+                LIMIT ${batchSize}`
 
             const manager = await this.tx()
             const repository = manager.getRepository(Swap)
-            const result: { id: string; pair_id: string; amount_usd: string }[] = await repository.query(query)
-
-            if (result.length === 0) break
+            const result: {
+                id: string
+                pair: string
+                user: string
+                amount_usd: string
+            }[] = await repository.query(query)
 
             for (const data of result) {
-                let swapper = swappers.get(data.pair_id)
-                if (swapper == null) {
-                    swapper = new SwapperObject({
-                        id: data.pair_id,
+                let user = users.get(data.user)
+                if (user == null) {
+                    user = new SwapperObject({
+                        id: data.user,
                         amountUSD: '0',
                         swapsCount: 0,
                     })
-                    swappers.set(swapper.id, swapper)
+                    users.set(user.id, user)
                 }
 
-                swapper.amountUSD = bigDecimal.add(swapper.amountUSD, data.amount_usd)
-                swapper.swapsCount += 1
+                user.amountUSD = bigDecimal.add(user.amountUSD, data.amount_usd)
+                user.swapsCount += 1
+
+                let pair = pairs.get(data.pair)
+                if (pair == null) {
+                    pair = new SwapperObject({
+                        id: data.pair,
+                        amountUSD: '0',
+                        swapsCount: 0,
+                    })
+                    pairs.set(pair.id, pair)
+                }
+
+                pair.amountUSD = bigDecimal.add(pair.amountUSD, data.amount_usd)
+                pair.swapsCount += 1
 
                 lastId = data.id
             }
 
             console.log(query)
+
+            if (result.length < batchSize) break
         }
 
-        return [...swappers.values()]
-            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD))
-            .slice(offset, offset + (limit != null ? limit : swappers.size))
+        return { pairs: [...pairs.values()], users: [...users.values()] }
     }
 }
