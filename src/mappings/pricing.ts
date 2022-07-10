@@ -1,5 +1,5 @@
 import { Pair, Token, Bundle } from '../model'
-import { ZERO_BD, ONE_BD } from '../consts'
+import { ZERO_BD, ONE_BD, PRECISION } from '../consts'
 import { Store } from '@subsquid/typeorm-store'
 import { getBundle, getPair, getPairByTokens } from './entityUtils'
 import { getToken } from './entityUtils'
@@ -96,7 +96,7 @@ export async function getTrackedVolumeUSD(
 
     // both are whitelist tokens, take average of both amounts
     if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-        return tokenAmount0.multiply(price0).add(tokenAmount1.multiply(price1)).divide(new bigDecimal(2), 32)
+        return tokenAmount0.multiply(price0).add(tokenAmount1.multiply(price1)).divide(new bigDecimal(2), PRECISION)
     }
 
     // take full value of the whitelisted token amount
