@@ -74,7 +74,7 @@ export class TradersResolver {
         const result = await this.getTop(range)
 
         return result.pairs
-            .sort((a, b) => bigDecimal.compareTo(b.amountUSD, a.amountUSD) * (order === Order.DESC ? -1 : 1))
+            .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1))
             .slice(offset, offset + (limit != null ? limit : result.pairs.length))
     }
 
