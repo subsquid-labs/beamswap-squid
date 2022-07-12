@@ -57,24 +57,22 @@ async function handleEvmLog(ctx: BatchContext<Store, unknown>, block: SubstrateB
     if (contractAddress === FACTORY_ADDRESS && event.args.topics[0] === PAIR_CREATED_TOPIC) {
         await handleNewPair(ctx, block, event)
     } else if (pairContracts.has(contractAddress)) {
-        for (const topic of event.args.topics) {
-            switch (topic) {
-                case pair.events['Transfer(address,address,uint256)'].topic:
-                    await handleTransfer(ctx, block, event)
-                    break
-                case pair.events['Sync(uint112,uint112)'].topic:
-                    await handleSync(ctx, block, event)
-                    break
-                case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                    await handleSwap(ctx, block, event)
-                    break
-                case pair.events['Mint(address,uint256,uint256)'].topic:
-                    await handleMint(ctx, block, event)
-                    break
-                case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                    await handleBurn(ctx, block, event)
-                    break
-            }
+        switch (event.args.topics[0]) {
+            case pair.events['Transfer(address,address,uint256)'].topic:
+                await handleTransfer(ctx, block, event)
+                break
+            case pair.events['Sync(uint112,uint112)'].topic:
+                await handleSync(ctx, block, event)
+                break
+            case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
+                await handleSwap(ctx, block, event)
+                break
+            case pair.events['Mint(address,uint256,uint256)'].topic:
+                await handleMint(ctx, block, event)
+                break
+            case pair.events['Burn(address,uint256,uint256,address)'].topic:
+                await handleBurn(ctx, block, event)
+                break
         }
     }
 }
