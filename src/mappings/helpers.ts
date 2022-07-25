@@ -1,53 +1,50 @@
-import assert from 'assert'
 import { User, Token, LiquidityPosition, Pair } from '../model'
-import { createErc20Contract, createErc20NameBytesContract, createErc20SymbolBytesContract } from '../contract'
-import { Contract, providers } from 'ethers'
-import { addTimeout } from '@subsquid/util-timeout'
 import bigDecimal from 'js-big-decimal'
-import { CHAIN_NODE } from '../consts'
+import { BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
+import { Store } from '@subsquid/typeorm-store'
+import * as erc20 from '../types/abi/erc20'
+import * as erc20NameBytes from '../types/abi/erc20NameBytes'
+import * as erc20SymbolBytes from '../types/abi/erc20SymbolBytes'
 
 export function convertTokenToDecimal(amount: bigint, decimals: number): bigDecimal {
     return new bigDecimal(bigDecimal.divide(amount.toString(), Math.pow(10, decimals).toString(), decimals))
 }
 
-async function fetchTokenSymbol(contract: Contract, contractSympolBytes: Contract): Promise<string> {
+async function fetchTokenSymbol(
+    contract: erc20.Contract,
+    contractSympolBytes: erc20SymbolBytes.Contract
+): Promise<string> {
     try {
         const symbolResult = await contract.symbol()
-        assert(typeof symbolResult === 'string')
 
         return symbolResult
     } catch (err) {
         const symbolResultBytes = await contractSympolBytes.symbol()
-        assert(Buffer.isBuffer(symbolResultBytes))
 
-        return symbolResultBytes.toString('ascii')
+        return Buffer.from(symbolResultBytes).toString('ascii')
     }
 }
 
-async function fetchTokenName(contract: Contract, contractNameBytes: Contract): Promise<string> {
+async function fetchTokenName(contract: erc20.Contract, contractNameBytes: erc20NameBytes.Contract): Promise<string> {
     try {
         const nameResult = await contract.name()
-        assert(typeof nameResult === 'string')
 
         return nameResult
     } catch (err) {
         const nameResultBytes = await contractNameBytes.name()
-        assert(Buffer.isBuffer(nameResultBytes))
 
-        return nameResultBytes.toString('ascii')
+        return Buffer.from(nameResultBytes).toString('ascii')
     }
 }
 
-async function fetchTokenTotalSupply(contract: Contract): Promise<bigint> {
+async function fetchTokenTotalSupply(contract: erc20.Contract): Promise<bigint> {
     const totalSupplyResult = (await contract.totalSupply())?.toBigInt()
-    assert(typeof totalSupplyResult === 'bigint')
 
     return totalSupplyResult
 }
 
-async function fetchTokenDecimals(contract: Contract): Promise<number> {
+async function fetchTokenDecimals(contract: erc20.Contract): Promise<number> {
     const decimalsResult = await contract.decimals()
-    assert(typeof decimalsResult === 'number')
 
     return decimalsResult
 }
@@ -109,16 +106,19 @@ export function createUser(address: string): User {
 //     return snapshot
 // }
 
-export async function createToken(address: string): Promise<Token> {
-    const provider = new providers.WebSocketProvider(CHAIN_NODE)
-    const contract = createErc20Contract(address).connect(provider)
-    const contractNameBytes = createErc20NameBytesContract(address).connect(provider)
-    const contractSympolBytes = createErc20SymbolBytesContract(address).connect(provider)
+export async function createToken(
+    ctx: BatchContext<Store, unknown>,
+    block: SubstrateBlock,
+    address: string
+): Promise<Token> {
+    const contract = new erc20.Contract(ctx, block, address)
+    const contractNameBytes = new erc20NameBytes.Contract(ctx, block, address)
+    const contractSympolBytes = new erc20SymbolBytes.Contract(ctx, block, address)
 
-    const symbol = await addTimeout(fetchTokenSymbol(contract, contractSympolBytes), 30)
-    const name = await addTimeout(fetchTokenName(contract, contractNameBytes), 30)
-    const totalSupply = await addTimeout(fetchTokenTotalSupply(contract), 30)
-    const decimals = await addTimeout(fetchTokenDecimals(contract), 30)
+    const symbol = await fetchTokenSymbol(contract, contractSympolBytes)
+    const name = await fetchTokenName(contract, contractNameBytes)
+    const totalSupply = await fetchTokenTotalSupply(contract)
+    const decimals = await fetchTokenDecimals(contract)
 
     // bail if we couldn't figure out the decimals
     if (!decimals) {

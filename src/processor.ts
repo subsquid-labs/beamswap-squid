@@ -5,9 +5,11 @@ import { handleNewPair } from './mappings/factory'
 import { CHAIN_NODE, FACTORY_ADDRESS } from './consts'
 import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
-import { pairContracts } from './contract'
+// import { pairContracts } from './contract'
 import { getAddress } from '@ethersproject/address'
 import { saveAll } from './mappings/entityUtils'
+import { Pair } from './model'
+import { LastBlock } from './model/custom/lastBlock'
 
 const PAIR_CREATED_TOPIC = factory.events['PairCreated(address,address,address,uint256)'].topic
 
@@ -20,7 +22,7 @@ const processor = new SubstrateBatchProcessor()
         archive: 'https://moonbeam.archive.subsquid.io/graphql',
     })
     .setTypesBundle('moonbeam')
-    .addEvmLog(FACTORY_ADDRESS.toLowerCase(), {
+    .addEvmLog(FACTORY_ADDRESS, {
         filter: [PAIR_CREATED_TOPIC],
     })
 
@@ -37,8 +39,6 @@ processor.addEvmLog('*', {
 })
 
 processor.run(database, async (ctx) => {
-    await pairContracts.init(ctx.store)
-
     for (const block of ctx.blocks) {
         for (const item of block.items) {
             if (item.kind === 'event') {
@@ -52,11 +52,25 @@ processor.run(database, async (ctx) => {
     await saveAll(ctx.store)
 })
 
+const knownContracts: string[] = []
+
+async function isPairContract(store: Store, address: string): Promise<boolean> {
+    const normalizedAddress = getAddress(address)
+    if (knownContracts.includes(normalizedAddress)) {
+        return true
+    } else if ((await store.countBy(Pair, { id: normalizedAddress })) > 0) {
+        knownContracts.push(normalizedAddress)
+        return true
+    }
+
+    return false
+}
+
 async function handleEvmLog(ctx: BatchContext<Store, unknown>, block: SubstrateBlock, event: EvmLogEvent) {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
     if (contractAddress === FACTORY_ADDRESS && event.args.topics[0] === PAIR_CREATED_TOPIC) {
         await handleNewPair(ctx, block, event)
-    } else if (pairContracts.has(contractAddress)) {
+    } else if (await isPairContract(ctx.store, contractAddress)) {
         switch (event.args.topics[0]) {
             case pair.events['Transfer(address,address,uint256)'].topic:
                 await handleTransfer(ctx, block, event)

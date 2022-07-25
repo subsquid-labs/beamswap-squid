@@ -180,7 +180,7 @@
     "outputs": [
       {
         "internalType": "bytes32",
-        "name": "",
+        "name": "param",
         "type": "bytes32"
       }
     ],
@@ -195,7 +195,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -210,7 +210,7 @@
     "outputs": [
       {
         "internalType": "bytes32",
-        "name": "",
+        "name": "param",
         "type": "bytes32"
       }
     ],
@@ -223,12 +223,12 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "addressA",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "",
+        "name": "addressB",
         "type": "address"
       }
     ],
@@ -236,7 +236,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -262,7 +262,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "",
+        "name": "param",
         "type": "bool"
       }
     ],
@@ -275,7 +275,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "param",
         "type": "address"
       }
     ],
@@ -283,7 +283,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -324,7 +324,7 @@
     "outputs": [
       {
         "internalType": "uint8",
-        "name": "",
+        "name": "param",
         "type": "uint8"
       }
     ],
@@ -339,7 +339,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "param",
         "type": "address"
       }
     ],
@@ -399,7 +399,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -435,7 +435,7 @@
     "outputs": [
       {
         "internalType": "string",
-        "name": "",
+        "name": "param",
         "type": "string"
       }
     ],
@@ -448,7 +448,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "param",
         "type": "address"
       }
     ],
@@ -456,7 +456,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -516,7 +516,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -531,7 +531,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -591,7 +591,7 @@
     "outputs": [
       {
         "internalType": "string",
-        "name": "",
+        "name": "param",
         "type": "string"
       }
     ],
@@ -615,7 +615,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "param",
         "type": "address"
       }
     ],
@@ -630,7 +630,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "param",
         "type": "address"
       }
     ],
@@ -645,7 +645,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -671,7 +671,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "",
+        "name": "param",
         "type": "bool"
       }
     ],
@@ -702,7 +702,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "",
+        "name": "param",
         "type": "bool"
       }
     ],

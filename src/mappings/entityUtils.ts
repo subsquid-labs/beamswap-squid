@@ -1,3 +1,4 @@
+import { getAddress } from '@ethersproject/address'
 import { Store } from '@subsquid/typeorm-store'
 import assert from 'assert'
 import { FACTORY_ADDRESS } from '../consts'
@@ -8,7 +9,7 @@ let uniswap: UniswapFactory | undefined
 
 export async function getUniswap(store: Store) {
     if (!uniswap) {
-        uniswap = await store.get(UniswapFactory, FACTORY_ADDRESS)
+        uniswap = await store.get(UniswapFactory, getAddress(FACTORY_ADDRESS))
         assert(uniswap != null)
     }
 

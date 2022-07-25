@@ -35,7 +35,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -62,7 +62,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "param",
         "type": "uint256"
       }
     ],
@@ -154,12 +154,12 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "addressA",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "",
+        "name": "addressB",
         "type": "address"
       }
     ],

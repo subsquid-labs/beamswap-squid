@@ -5,7 +5,6 @@ import { createToken } from './helpers'
 import { getAddress } from 'ethers/lib/utils'
 import { BatchContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
-import { pairContracts } from '../contract'
 import { ZERO_BD } from '../consts'
 
 export async function handleNewPair(
@@ -43,8 +42,8 @@ export async function handleNewPair(
     await ctx.store.save(factory)
 
     // create the tokens
-    const token0 = await getToken(ctx.store, data.token0)
-    const token1 = await getToken(ctx.store, data.token1)
+    const token0 = await getToken(ctx, block, data.token0)
+    const token1 = await getToken(ctx, block, data.token1)
 
     const pair = new Pair({
         id: data.pair,
@@ -69,15 +68,13 @@ export async function handleNewPair(
     })
 
     await ctx.store.save(pair)
-
-    pairContracts.add(data.pair)
 }
 
-async function getToken(store: Store, address: string): Promise<Token> {
-    let token = await store.get(Token, address)
+async function getToken(ctx: BatchContext<Store, unknown>, block: SubstrateBlock, address: string): Promise<Token> {
+    let token = await ctx.store.get(Token, address)
     if (!token) {
-        token = await createToken(address)
-        await store.save(token)
+        token = await createToken(ctx, block, address)
+        await ctx.store.save(token)
     }
 
     return token

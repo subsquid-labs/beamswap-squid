@@ -5,7 +5,7 @@ export const knownContracts: ReadonlyArray<string> = []
 export const CHAIN_NODE = 'wss://moonbeam.api.onfinality.io/public-ws'
 // export const CHAIN_NODE = "https://moonbeam.api.onfinality.io/public";
 
-export const FACTORY_ADDRESS = '0x985BcA32293A7A496300a48081947321177a86FD'
+export const FACTORY_ADDRESS = '0x985bca32293a7a496300a48081947321177a86fd'
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 
 export const ZERO_BI = 0n

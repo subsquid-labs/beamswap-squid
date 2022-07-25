@@ -1,4 +1,5 @@
 import * as ethers from "ethers";
+import assert from "assert";
 
 export const abi = new ethers.utils.Interface(getJsonAbi());
 
@@ -6,7 +7,7 @@ export interface PairCreated0Event {
   token0: string;
   token1: string;
   pair: string;
-  null: ethers.BigNumber;
+  param: ethers.BigNumber;
 }
 
 export interface EvmEvent {
@@ -27,11 +28,88 @@ export const events = {
         token0: result[0],
         token1: result[1],
         pair: result[2],
-        null: result[3],
+        param: result[3],
       }
     }
   }
   ,
+}
+
+interface ChainContext  {
+  _chain: Chain
+}
+
+interface BlockContext  {
+  _chain: Chain
+  block: Block
+}
+
+interface Block  {
+  height: number
+}
+
+interface Chain  {
+  client:  {
+    call: <T=any>(method: string, params?: unknown[]) => Promise<T>
+  }
+}
+
+export class Contract  {
+  private readonly _chain: Chain
+  private readonly blockHeight: number
+  readonly address: string
+
+  constructor(ctx: BlockContext, address: string)
+  constructor(ctx: ChainContext, block: Block, address: string)
+  constructor(ctx: BlockContext, blockOrAddress: Block | string, address?: string) {
+    this._chain = ctx._chain
+    if (typeof blockOrAddress === 'string')  {
+      this.blockHeight = ctx.block.height
+      this.address = ethers.utils.getAddress(blockOrAddress)
+    }
+    else  {
+      assert(address != null)
+      this.blockHeight = blockOrAddress.height
+      this.address = ethers.utils.getAddress(address)
+    }
+  }
+
+  private async call(name: string, args: any[]) : Promise<ReadonlyArray<any>> {
+    const fragment = abi.getFunction(name)
+    const data = abi.encodeFunctionData(fragment, args)
+    const result = await this._chain.client.call('eth_call', [{to: this.address, data}, this.blockHeight])
+    return abi.decodeFunctionResult(fragment, result)
+  }
+
+  async INIT_CODE_PAIR_HASH(): Promise<string> {
+    const result = await this.call("INIT_CODE_PAIR_HASH", [])
+    return result[0]
+  }
+
+  async allPairs(param: ethers.BigNumber): Promise<string> {
+    const result = await this.call("allPairs", [param])
+    return result[0]
+  }
+
+  async allPairsLength(): Promise<ethers.BigNumber> {
+    const result = await this.call("allPairsLength", [])
+    return result[0]
+  }
+
+  async feeTo(): Promise<string> {
+    const result = await this.call("feeTo", [])
+    return result[0]
+  }
+
+  async feeToSetter(): Promise<string> {
+    const result = await this.call("feeToSetter", [])
+    return result[0]
+  }
+
+  async getPair(addressA: string, addressB: string): Promise<string> {
+    const result = await this.call("getPair", [addressA, addressB])
+    return result[0]
+  }
 }
 
 function getJsonAbi(): any {
@@ -72,7 +150,7 @@ function getJsonAbi(): any {
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -99,7 +177,7 @@ function getJsonAbi(): any {
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -191,12 +269,12 @@ function getJsonAbi(): any {
       "inputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "addressA",
           "type": "address"
         },
         {
           "internalType": "address",
-          "name": "",
+          "name": "addressB",
           "type": "address"
         }
       ],

@@ -1,4 +1,5 @@
 import * as ethers from "ethers";
+import assert from "assert";
 
 export const abi = new ethers.utils.Interface(getJsonAbi());
 
@@ -146,6 +147,142 @@ export const events = {
     }
   }
   ,
+}
+
+interface ChainContext  {
+  _chain: Chain
+}
+
+interface BlockContext  {
+  _chain: Chain
+  block: Block
+}
+
+interface Block  {
+  height: number
+}
+
+interface Chain  {
+  client:  {
+    call: <T=any>(method: string, params?: unknown[]) => Promise<T>
+  }
+}
+
+export class Contract  {
+  private readonly _chain: Chain
+  private readonly blockHeight: number
+  readonly address: string
+
+  constructor(ctx: BlockContext, address: string)
+  constructor(ctx: ChainContext, block: Block, address: string)
+  constructor(ctx: BlockContext, blockOrAddress: Block | string, address?: string) {
+    this._chain = ctx._chain
+    if (typeof blockOrAddress === 'string')  {
+      this.blockHeight = ctx.block.height
+      this.address = ethers.utils.getAddress(blockOrAddress)
+    }
+    else  {
+      assert(address != null)
+      this.blockHeight = blockOrAddress.height
+      this.address = ethers.utils.getAddress(address)
+    }
+  }
+
+  private async call(name: string, args: any[]) : Promise<ReadonlyArray<any>> {
+    const fragment = abi.getFunction(name)
+    const data = abi.encodeFunctionData(fragment, args)
+    const result = await this._chain.client.call('eth_call', [{to: this.address, data}, this.blockHeight])
+    return abi.decodeFunctionResult(fragment, result)
+  }
+
+  async DOMAIN_SEPARATOR(): Promise<string> {
+    const result = await this.call("DOMAIN_SEPARATOR", [])
+    return result[0]
+  }
+
+  async MINIMUM_LIQUIDITY(): Promise<ethers.BigNumber> {
+    const result = await this.call("MINIMUM_LIQUIDITY", [])
+    return result[0]
+  }
+
+  async PERMIT_TYPEHASH(): Promise<string> {
+    const result = await this.call("PERMIT_TYPEHASH", [])
+    return result[0]
+  }
+
+  async allowance(addressA: string, addressB: string): Promise<ethers.BigNumber> {
+    const result = await this.call("allowance", [addressA, addressB])
+    return result[0]
+  }
+
+  async balanceOf(param: string): Promise<ethers.BigNumber> {
+    const result = await this.call("balanceOf", [param])
+    return result[0]
+  }
+
+  async decimals(): Promise<number> {
+    const result = await this.call("decimals", [])
+    return result[0]
+  }
+
+  async factory(): Promise<string> {
+    const result = await this.call("factory", [])
+    return result[0]
+  }
+
+  async getReserves(): Promise<{_reserve0: ethers.BigNumber,_reserve1: ethers.BigNumber,_blockTimestampLast: number}> {
+    const result = await this.call("getReserves", [])
+    return  {
+      _reserve0: result[0],
+      _reserve1: result[1],
+      _blockTimestampLast: result[2],
+    }
+  }
+
+  async kLast(): Promise<ethers.BigNumber> {
+    const result = await this.call("kLast", [])
+    return result[0]
+  }
+
+  async name(): Promise<string> {
+    const result = await this.call("name", [])
+    return result[0]
+  }
+
+  async nonces(param: string): Promise<ethers.BigNumber> {
+    const result = await this.call("nonces", [param])
+    return result[0]
+  }
+
+  async price0CumulativeLast(): Promise<ethers.BigNumber> {
+    const result = await this.call("price0CumulativeLast", [])
+    return result[0]
+  }
+
+  async price1CumulativeLast(): Promise<ethers.BigNumber> {
+    const result = await this.call("price1CumulativeLast", [])
+    return result[0]
+  }
+
+  async symbol(): Promise<string> {
+    const result = await this.call("symbol", [])
+    return result[0]
+  }
+
+  async token0(): Promise<string> {
+    const result = await this.call("token0", [])
+    return result[0]
+  }
+
+  async token1(): Promise<string> {
+    const result = await this.call("token1", [])
+    return result[0]
+  }
+
+  async totalSupply(): Promise<ethers.BigNumber> {
+    const result = await this.call("totalSupply", [])
+    return result[0]
+  }
 }
 
 function getJsonAbi(): any {
@@ -331,7 +468,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "bytes32",
-          "name": "",
+          "name": "param",
           "type": "bytes32"
         }
       ],
@@ -346,7 +483,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -361,7 +498,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "bytes32",
-          "name": "",
+          "name": "param",
           "type": "bytes32"
         }
       ],
@@ -374,12 +511,12 @@ function getJsonAbi(): any {
       "inputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "addressA",
           "type": "address"
         },
         {
           "internalType": "address",
-          "name": "",
+          "name": "addressB",
           "type": "address"
         }
       ],
@@ -387,7 +524,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -413,7 +550,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "bool",
-          "name": "",
+          "name": "param",
           "type": "bool"
         }
       ],
@@ -426,7 +563,7 @@ function getJsonAbi(): any {
       "inputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "param",
           "type": "address"
         }
       ],
@@ -434,7 +571,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -475,7 +612,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint8",
-          "name": "",
+          "name": "param",
           "type": "uint8"
         }
       ],
@@ -490,7 +627,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "param",
           "type": "address"
         }
       ],
@@ -550,7 +687,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -586,7 +723,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "string",
-          "name": "",
+          "name": "param",
           "type": "string"
         }
       ],
@@ -599,7 +736,7 @@ function getJsonAbi(): any {
       "inputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "param",
           "type": "address"
         }
       ],
@@ -607,7 +744,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -667,7 +804,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -682,7 +819,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -742,7 +879,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "string",
-          "name": "",
+          "name": "param",
           "type": "string"
         }
       ],
@@ -766,7 +903,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "param",
           "type": "address"
         }
       ],
@@ -781,7 +918,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "param",
           "type": "address"
         }
       ],
@@ -796,7 +933,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "param",
           "type": "uint256"
         }
       ],
@@ -822,7 +959,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "bool",
-          "name": "",
+          "name": "param",
           "type": "bool"
         }
       ],
@@ -853,7 +990,7 @@ function getJsonAbi(): any {
       "outputs": [
         {
           "internalType": "bool",
-          "name": "",
+          "name": "param",
           "type": "bool"
         }
       ],
