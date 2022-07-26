@@ -20,6 +20,9 @@ export class Swap {
   @Column_("timestamp with time zone", {nullable: false})
   timestamp!: Date
 
+  @Column_("text", {nullable: true})
+  pairId!: string | undefined | null
+
   @Index_()
   @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair

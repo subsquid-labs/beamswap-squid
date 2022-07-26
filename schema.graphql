@@ -170,6 +170,8 @@ type Swap @entity {
   id: ID!
   transaction: Transaction!
   timestamp: DateTime! # need this to pull recent txns for specific token or pair
+  
+  pairId: ID!
   pair: Pair!
 
   # populated from the Swap event
