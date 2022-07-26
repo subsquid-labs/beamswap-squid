@@ -142,7 +142,6 @@ export class TradersResolver {
                         })
                 )
                 .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1))
-                .slice(offset, limit != null ? offset + limit : undefined),
         })
     }
 }
