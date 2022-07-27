@@ -169,7 +169,7 @@ type Swap @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
   transaction: Transaction!
-  timestamp: DateTime! # need this to pull recent txns for specific token or pair
+  timestamp: DateTime! @index # need this to pull recent txns for specific token or pair
   
   pairId: ID!
   pair: Pair!
@@ -181,7 +181,7 @@ type Swap @entity {
   amount1In: String!
   amount0Out: String!
   amount1Out: String!
-  to: String!
+  to: String! @index
   logIndex: Int
 
   # derived info

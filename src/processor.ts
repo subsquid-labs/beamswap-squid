@@ -2,7 +2,7 @@ import { BatchContext, EvmLogEvent, SubstrateBatchProcessor, SubstrateBlock } fr
 import * as factory from './types/abi/factory'
 import * as pair from './types/abi/pair'
 import { handleNewPair } from './mappings/factory'
-import { CHAIN_NODE, FACTORY_ADDRESS } from './consts'
+import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from './consts'
 import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
 // import { pairContracts } from './contract'
@@ -96,10 +96,7 @@ async function handleEvmLog(ctx: BatchContext<Store, unknown>, block: SubstrateB
     }
 }
 
-const HOUR_MS = 1000.0 * 60.0 * 60.0
-const DAY_MS = HOUR_MS * 24.0
-const WEEK_MS = DAY_MS * 7.0
-const MONTH_MS = DAY_MS * 30.0
+
 
 const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined

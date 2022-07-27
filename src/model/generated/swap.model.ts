@@ -17,6 +17,7 @@ export class Swap {
   @ManyToOne_(() => Transaction, {nullable: true})
   transaction!: Transaction
 
+  @Index_()
   @Column_("timestamp with time zone", {nullable: false})
   timestamp!: Date
 
@@ -45,6 +46,7 @@ export class Swap {
   @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
   amount1Out!: bigDecimal
 
+  @Index_()
   @Column_("text", {nullable: false})
   to!: string
 
