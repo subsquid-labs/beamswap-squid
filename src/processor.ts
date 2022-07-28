@@ -116,33 +116,9 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     const end = Math.floor(block.timestamp / HOUR_MS) * HOUR_MS
 
     const newSwapStat: Record<SwapPeriod, SwapStatPeriod> = {
-        [SwapPeriod.DAY]: new SwapStatPeriod({
-            id: SwapPeriod.DAY,
-            swapsCount: 0,
-            usersCount: 0,
-            pairsCount: 0,
-            from: new Date(end - DAY_MS),
-            to: new Date(end),
-            totalAmountUSD: '0',
-        }),
-        [SwapPeriod.WEEK]: new SwapStatPeriod({
-            id: SwapPeriod.WEEK,
-            swapsCount: 0,
-            usersCount: 0,
-            pairsCount: 0,
-            from: new Date(end - WEEK_MS),
-            to: new Date(end),
-            totalAmountUSD: '0',
-        }),
-        [SwapPeriod.MONTH]: new SwapStatPeriod({
-            id: SwapPeriod.MONTH,
-            swapsCount: 0,
-            usersCount: 0,
-            pairsCount: 0,
-            from: new Date(end - MONTH_MS),
-            to: new Date(end),
-            totalAmountUSD: '0',
-        })
+        [SwapPeriod.DAY]: createSwapStat(SwapPeriod.DAY, end - DAY_MS, end),
+        [SwapPeriod.WEEK]: createSwapStat(SwapPeriod.DAY, Math.floor((end - WEEK_MS) / DAY_MS) * DAY_MS, end),
+        [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.DAY, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end)
     }
 
     const start = Math.max(...Object.values(newSwapStat).map(s => s.from.getTime()))
@@ -219,4 +195,16 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
 function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: bigDecimal) {
     swapStat.swapsCount += 1
     swapStat.totalAmountUSD = bigDecimal.add(amountUSD.getValue(), swapStat.totalAmountUSD)
+}
+
+function createSwapStat(id: SwapPeriod, from: number, to: number) {
+    return new SwapStatPeriod({
+        id,
+        from: new Date(from),
+        to: new Date(to),
+        swapsCount: 0,
+        usersCount: 0,
+        pairsCount: 0,
+        totalAmountUSD: '0',
+    })
 }
