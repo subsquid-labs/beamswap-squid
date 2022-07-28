@@ -119,6 +119,8 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         [SwapPeriod.DAY]: new SwapStatPeriod({
             id: SwapPeriod.DAY,
             swapsCount: 0,
+            usersCount: 0,
+            pairsCount: 0,
             from: new Date(end - DAY_MS),
             to: new Date(end),
             totalAmountUSD: '0',
@@ -126,6 +128,8 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         [SwapPeriod.WEEK]: new SwapStatPeriod({
             id: SwapPeriod.WEEK,
             swapsCount: 0,
+            usersCount: 0,
+            pairsCount: 0,
             from: new Date(end - WEEK_MS),
             to: new Date(end),
             totalAmountUSD: '0',
@@ -133,6 +137,8 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         [SwapPeriod.MONTH]: new SwapStatPeriod({
             id: SwapPeriod.MONTH,
             swapsCount: 0,
+            usersCount: 0,
+            pairsCount: 0,
             from: new Date(end - MONTH_MS),
             to: new Date(end),
             totalAmountUSD: '0',
