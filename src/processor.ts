@@ -9,7 +9,7 @@ import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
 import { getAddress } from '@ethersproject/address'
 import { saveAll } from './mappings/entityUtils'
 import { Pair, Swap, Swapper, SwapperType } from './model'
-import { SwapStat } from './model/custom/swapStat'
+import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
 import bigDecimal from 'js-big-decimal'
 
@@ -102,10 +102,10 @@ const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
 
 async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBlock) {
-    const swapStat = await ctx.store.findOneBy(SwapStat, { id: '0' })
+    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: '0' })
 
     if (lastUpdateTopTimestamp == null) {
-        lastUpdateTopTimestamp = swapStat?.timestamp.getTime() || -topUpdateInterval
+        lastUpdateTopTimestamp = swapStat?.to.getTime() || -topUpdateInterval
     }
 
     if (block.timestamp < lastUpdateTopTimestamp + topUpdateInterval) return
@@ -113,25 +113,36 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
 
     const swappers = new Map<string, Swapper>()
 
-    const end = new Date(Math.floor(block.timestamp / HOUR_MS) * HOUR_MS)
-    const start = new Date(end.getTime() - MONTH_MS)
+    const end = Math.floor(block.timestamp / HOUR_MS) * HOUR_MS
 
-    ctx.log.info(`month: ${start} - ${end}
-    week: ${new Date(end.getTime() - WEEK_MS)} - ${end}
-    day: ${new Date(end.getTime() - DAY_MS)} - ${end}
-    `)
+    const newSwapStat: Record<SwapPeriod, SwapStatPeriod> = {
+        [SwapPeriod.DAY]: new SwapStatPeriod({
+            id: SwapPeriod.DAY,
+            swapsCount: 0,
+            from: new Date(end - DAY_MS),
+            to: new Date(end),
+            totalAmountUSD: '0',
+        }),
+        [SwapPeriod.WEEK]: new SwapStatPeriod({
+            id: SwapPeriod.WEEK,
+            swapsCount: 0,
+            from: new Date(end - WEEK_MS),
+            to: new Date(end),
+            totalAmountUSD: '0',
+        }),
+        [SwapPeriod.MONTH]: new SwapStatPeriod({
+            id: SwapPeriod.MONTH,
+            swapsCount: 0,
+            from: new Date(end - MONTH_MS),
+            to: new Date(end),
+            totalAmountUSD: '0',
+        })
+    }
+
+    const start = Math.max(...Object.values(newSwapStat).map(s => s.from.getTime()))
 
     const swaps = await ctx.store.find(Swap, {
-        where: { timestamp: Between(start, end) },
-    })
-
-    const newSwapStat = new SwapStat({
-        id: '0',
-        daySwapsCount: 0,
-        weekSwapsCount: 0,
-        monthSwapsCount: 0,
-        timestamp: end,
-        totalAmountUSD: '0',
+        where: { timestamp: Between(new Date(start), new Date(end)) },
     })
 
     for await (const swap of swaps) {
@@ -159,68 +170,47 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
             swappers.set(pair.id, pair)
         }
 
-        if (swap.timestamp.getTime() >= end.getTime() - DAY_MS) {
+        if (swap.timestamp.getTime() >= end - DAY_MS) {
             user.dayAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.dayAmountUSD)
             pair.dayAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.dayAmountUSD)
-            newSwapStat.daySwapsCount += 1
+            updateSwapStat(newSwapStat[SwapPeriod.DAY], swap.amountUSD)
         }
 
-        if (swap.timestamp.getTime() >= end.getTime() - WEEK_MS) {
+        if (swap.timestamp.getTime() >= end - WEEK_MS) {
             user.weekAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.weekAmountUSD)
             pair.weekAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.weekAmountUSD)
-            newSwapStat.weekSwapsCount += 1
+            updateSwapStat(newSwapStat[SwapPeriod.WEEK], swap.amountUSD)
         }
 
-        if (swap.timestamp.getTime() >= end.getTime() - MONTH_MS) {
+        if (swap.timestamp.getTime() >= end - MONTH_MS) {
             user.monthAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.monthAmountUSD)
             pair.monthAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.monthAmountUSD)
-            newSwapStat.monthSwapsCount += 1
+            updateSwapStat(newSwapStat[SwapPeriod.MONTH], swap.amountUSD)
         }
-
-        newSwapStat.totalAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), newSwapStat.totalAmountUSD)
     }
+
+    for (const swapper of swappers.values()) {
+        if (swapper.type === SwapperType.PAIR) {
+            if (bigDecimal.compareTo(swapper.dayAmountUSD, 0) > 0) newSwapStat[SwapPeriod.DAY].pairsCount += 1
+            if (bigDecimal.compareTo(swapper.weekAmountUSD, 0) > 0) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
+            if (bigDecimal.compareTo(swapper.monthAmountUSD, 0) > 0) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
+        } else {
+            if (bigDecimal.compareTo(swapper.dayAmountUSD, 0) > 0) newSwapStat[SwapPeriod.DAY].usersCount += 1
+            if (bigDecimal.compareTo(swapper.weekAmountUSD, 0) > 0) newSwapStat[SwapPeriod.WEEK].usersCount += 1
+            if (bigDecimal.compareTo(swapper.monthAmountUSD, 0) > 0) newSwapStat[SwapPeriod.MONTH].usersCount += 1
+        }
+    }
+
+    await ctx.store.save(Object.values(newSwapStat))
+    await ctx.store.remove(await ctx.store.findBy(Swapper, { id: Not(In([...swappers.keys()])) }))
+    await ctx.store.save([...swappers.values()])
 
     lastUpdateTopTimestamp = block.timestamp
 
-    const swappersArray = [...swappers.values()]
-
-    const { dayPairsCount, weekPairsCount, monthPairsCount } = swappersArray.reduce(
-        (res, s) => {
-            if (s.type === SwapperType.PAIR) {
-                if (bigDecimal.compareTo(s.dayAmountUSD, 0) > 0) res.dayPairsCount += 1
-                if (bigDecimal.compareTo(s.weekAmountUSD, 0) > 0) res.weekPairsCount += 1
-                if (bigDecimal.compareTo(s.monthAmountUSD, 0) > 0) res.monthPairsCount += 1
-            }
-
-            return res
-        },
-        { dayPairsCount: 0, weekPairsCount: 0, monthPairsCount: 0 }
-    )
-
-    const { dayUsersCount, weekUsersCount, monthUsersCount } = swappersArray.reduce(
-        (res, s) => {
-            if (s.type === SwapperType.USER) {
-                if (bigDecimal.compareTo(s.dayAmountUSD, 0) > 0) res.dayUsersCount += 1
-                if (bigDecimal.compareTo(s.weekAmountUSD, 0) > 0) res.weekUsersCount += 1
-                if (bigDecimal.compareTo(s.monthAmountUSD, 0) > 0) res.monthUsersCount += 1
-            }
-
-            return res
-        },
-        { dayUsersCount: 0, weekUsersCount: 0, monthUsersCount: 0 }
-    )
-
-    newSwapStat.dayPairsCount = dayPairsCount
-    newSwapStat.weekPairsCount = weekPairsCount
-    newSwapStat.monthPairsCount = monthPairsCount
-
-    newSwapStat.dayUsersCount = dayUsersCount
-    newSwapStat.weekUsersCount = weekUsersCount
-    newSwapStat.monthUsersCount = monthUsersCount
-
-    await ctx.store.save(newSwapStat)
-    await ctx.store.remove(await ctx.store.findBy(Swapper, { id: Not(In([...swappers.keys()])) }))
-    await ctx.store.save(swappersArray)
-
     ctx.log.info('Top updated.')
+}
+
+function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: bigDecimal) {
+    swapStat.swapsCount += 1
+    swapStat.totalAmountUSD = bigDecimal.add(amountUSD.getValue(), swapStat.totalAmountUSD)
 }

@@ -1,9 +1,9 @@
 import { Arg, Field, ObjectType, Query, Resolver, registerEnumType, Int } from 'type-graphql'
 import 'reflect-metadata'
 import { EntityManager } from 'typeorm'
-import { Swap, Swapper, SwapperType, SwapStat } from '../../model'
+import { Swap, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from '../../model'
 import bigDecimal from 'js-big-decimal'
-import { DAY_MS, MONTH_MS, WEEK_MS } from '../../consts'
+import { DAY_MS } from '../../consts'
 import { In, Between } from 'typeorm'
 import assert from 'assert'
 
@@ -98,7 +98,7 @@ export class TradersResolver {
         @Arg('order', () => Order, { nullable: true, defaultValue: Order.DESC })
         order: Order,
         @Arg('range', () => Range, { nullable: false })
-        range: Range
+        range: Range,
     ): Promise<TopObject | null> {
         console.log(new Date(Date.now()), 'Query users top...')
 
@@ -127,7 +127,16 @@ export class TradersResolver {
 
     private async getTop(type: SwapperType, limit: number, offset: number, order: Order, range: Range) {
         const manager = await this.tx()
-        const stat = await manager.getRepository(SwapStat).findOneBy({ id: '0' })
+        const stat = await manager.getRepository(SwapStatPeriod).findOneBy({
+            id:
+                range === Range.DAY
+                    ? SwapPeriod.DAY
+                    : range === Range.WEEK
+                        ? SwapPeriod.WEEK
+                        : SwapPeriod.MONTH
+        })
+        assert(stat != null)
+
         const top = await manager.find(Swapper, {
             where: { type },
             order: {
@@ -139,30 +148,14 @@ export class TradersResolver {
             skip: offset,
         })
         const daysInfo = await new DayVolumeResolver(this.tx)
-            .getDayVolume(top.map(u => u.id), range)
+            .getDayVolume(top.map(u => u.id), stat.from, stat.to)
             .then(users => new Map(users.map(u => [u.id, u.volumesPerDay])))
 
         return new TopObject({
-            timestamp: stat?.timestamp,
-            count:
-                type === SwapperType.PAIR
-                    ? range === Range.DAY
-                        ? stat?.dayPairsCount
-                        : range === Range.WEEK
-                            ? stat?.weekPairsCount
-                            : stat?.monthPairsCount
-                    : range === Range.DAY
-                        ? stat?.dayUsersCount
-                        : range === Range.WEEK
-                            ? stat?.weekUsersCount
-                            : stat?.monthUsersCount,
-            totalAmountUSD: stat?.totalAmountUSD,
-            swapsCount:
-                range === Range.DAY
-                    ? stat?.daySwapsCount
-                    : range === Range.WEEK
-                        ? stat?.weekSwapsCount
-                        : stat?.monthSwapsCount,
+            timestamp: stat.to,
+            count: type === SwapperType.PAIR ? stat.pairsCount : stat.usersCount,
+            totalAmountUSD: stat.totalAmountUSD,
+            swapsCount: stat.swapsCount,
             top: top
                 .map(
                     (s) =>
@@ -192,23 +185,18 @@ export class DayVolumeResolver {
     async getDayVolume(
         @Arg('ids', () => [String], { nullable: true, defaultValue: null })
         ids: string[],
-        @Arg('range', () => Range, { nullable: false })
-        range: Range
+        @Arg('from', () => Date, { nullable: false })
+        from: Date,
+        @Arg('to', () => Date, { nullable: false })
+        to: Date
     ): Promise<SwapInfoObject[]> {
         const manager = await this.tx()
-
-        const stat = await manager.getRepository(SwapStat).findOneBy({ id: '0' })
-        if (stat == null) return []
-
-        const rangeMs = range === Range.DAY ? DAY_MS : range === Range.WEEK ? WEEK_MS : MONTH_MS
-        const end = new Date(Math.ceil(stat?.timestamp.getTime() / DAY_MS) * DAY_MS - 1)
-        const start = new Date(end.getTime() - rangeMs)
 
         const users = new Map(ids.map(id => [id, new SwapInfoObject({ id, volumesPerDay: [] })]))
         const swaps = await manager.getRepository(Swap).find({
             where: {
                 to: In(ids),
-                timestamp: Between(start, end)
+                timestamp: Between(from, to)
             }
         })
 

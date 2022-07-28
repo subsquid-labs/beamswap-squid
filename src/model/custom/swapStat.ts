@@ -1,8 +1,14 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 
+export enum SwapPeriod {
+  DAY = 'Day',
+  MONTH = 'Month',
+  WEEK = 'Week',
+}
+
 @Entity_()
-export class SwapStat {
-  constructor(props?: Partial<SwapStat>) {
+export class SwapStatPeriod {
+  constructor(props?: Partial<SwapStatPeriod>) {
     Object.assign(this, props)
   }
 
@@ -10,34 +16,19 @@ export class SwapStat {
   id!: string
 
   @Column_("timestamp with time zone", {nullable: false})
-  timestamp!: Date
+  from!: Date
+
+  @Column_("timestamp with time zone", {nullable: false})
+  to!: Date
 
   @Column_('int4', { nullable: false })
-  daySwapsCount!: number
+  swapsCount!: number
 
   @Column_('int4', { nullable: false })
-  weekSwapsCount!: number
+  pairsCount!: number
 
   @Column_('int4', { nullable: false })
-  monthSwapsCount!: number
-
-  @Column_('int4', { nullable: false })
-  dayPairsCount!: number
-
-  @Column_('int4', { nullable: false })
-  weekPairsCount!: number
-
-  @Column_('int4', { nullable: false })
-  monthPairsCount!: number
-
-  @Column_('int4', { nullable: false })
-  dayUsersCount!: number
-
-  @Column_('int4', { nullable: false })
-  weekUsersCount!: number
-
-  @Column_('int4', { nullable: false })
-  monthUsersCount!: number
+  usersCount!: number
 
   @Column_('numeric', { nullable: false, precision: 38, scale: 20 })
   totalAmountUSD!: string

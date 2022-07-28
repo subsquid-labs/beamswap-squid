@@ -48,7 +48,7 @@ export interface EvmEvent {
 }
 
 export const events = {
-  "Approval(address,address,uint256)":  {
+  "Approval(address,address,uint256)": {
     topic: abi.getEventTopic("Approval(address,address,uint256)"),
     decode(data: EvmEvent): Approval0Event {
       const result = abi.decodeEventLog(
@@ -56,7 +56,7 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         owner: result[0],
         spender: result[1],
         value: result[2],
@@ -64,7 +64,7 @@ export const events = {
     }
   }
   ,
-  "Burn(address,uint256,uint256,address)":  {
+  "Burn(address,uint256,uint256,address)": {
     topic: abi.getEventTopic("Burn(address,uint256,uint256,address)"),
     decode(data: EvmEvent): Burn0Event {
       const result = abi.decodeEventLog(
@@ -72,7 +72,7 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         sender: result[0],
         amount0: result[1],
         amount1: result[2],
@@ -81,7 +81,7 @@ export const events = {
     }
   }
   ,
-  "Mint(address,uint256,uint256)":  {
+  "Mint(address,uint256,uint256)": {
     topic: abi.getEventTopic("Mint(address,uint256,uint256)"),
     decode(data: EvmEvent): Mint0Event {
       const result = abi.decodeEventLog(
@@ -89,7 +89,7 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         sender: result[0],
         amount0: result[1],
         amount1: result[2],
@@ -97,7 +97,7 @@ export const events = {
     }
   }
   ,
-  "Swap(address,uint256,uint256,uint256,uint256,address)":  {
+  "Swap(address,uint256,uint256,uint256,uint256,address)": {
     topic: abi.getEventTopic("Swap(address,uint256,uint256,uint256,uint256,address)"),
     decode(data: EvmEvent): Swap0Event {
       const result = abi.decodeEventLog(
@@ -105,7 +105,7 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         sender: result[0],
         amount0In: result[1],
         amount1In: result[2],
@@ -116,7 +116,7 @@ export const events = {
     }
   }
   ,
-  "Sync(uint112,uint112)":  {
+  "Sync(uint112,uint112)": {
     topic: abi.getEventTopic("Sync(uint112,uint112)"),
     decode(data: EvmEvent): Sync0Event {
       const result = abi.decodeEventLog(
@@ -124,14 +124,14 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         reserve0: result[0],
         reserve1: result[1],
       }
     }
   }
   ,
-  "Transfer(address,address,uint256)":  {
+  "Transfer(address,address,uint256)": {
     topic: abi.getEventTopic("Transfer(address,address,uint256)"),
     decode(data: EvmEvent): Transfer0Event {
       const result = abi.decodeEventLog(
@@ -139,7 +139,7 @@ export const events = {
         data.data || "",
         data.topics
       );
-      return  {
+      return {
         from: result[0],
         to: result[1],
         value: result[2],
@@ -149,26 +149,26 @@ export const events = {
   ,
 }
 
-interface ChainContext  {
+interface ChainContext {
   _chain: Chain
 }
 
-interface BlockContext  {
+interface BlockContext {
   _chain: Chain
   block: Block
 }
 
-interface Block  {
+interface Block {
   height: number
 }
 
-interface Chain  {
-  client:  {
-    call: <T=any>(method: string, params?: unknown[]) => Promise<T>
+interface Chain {
+  client: {
+    call: <T = any>(method: string, params?: unknown[]) => Promise<T>
   }
 }
 
-export class Contract  {
+export class Contract {
   private readonly _chain: Chain
   private readonly blockHeight: number
   readonly address: string
@@ -177,21 +177,21 @@ export class Contract  {
   constructor(ctx: ChainContext, block: Block, address: string)
   constructor(ctx: BlockContext, blockOrAddress: Block | string, address?: string) {
     this._chain = ctx._chain
-    if (typeof blockOrAddress === 'string')  {
+    if (typeof blockOrAddress === 'string') {
       this.blockHeight = ctx.block.height
       this.address = ethers.utils.getAddress(blockOrAddress)
     }
-    else  {
+    else {
       assert(address != null)
       this.blockHeight = blockOrAddress.height
       this.address = ethers.utils.getAddress(address)
     }
   }
 
-  private async call(name: string, args: any[]) : Promise<ReadonlyArray<any>> {
+  private async call(name: string, args: any[]): Promise<ReadonlyArray<any>> {
     const fragment = abi.getFunction(name)
     const data = abi.encodeFunctionData(fragment, args)
-    const result = await this._chain.client.call('eth_call', [{to: this.address, data}, this.blockHeight])
+    const result = await this._chain.client.call('eth_call', [{ to: this.address, data }, this.blockHeight])
     return abi.decodeFunctionResult(fragment, result)
   }
 
@@ -210,8 +210,10 @@ export class Contract  {
     return result[0]
   }
 
-  async allowance(addressA: string, addressB: string): Promise<ethers.BigNumber> {
-    const result = await this.call("allowance", [addressA, addressB])
+  async allowance(...args: [number]): Promise<ethers.BigNumber>
+  async allowance(...args: [addressA: string, addressB: string]): Promise<ethers.BigNumber>
+  async allowance(...args: [number] | [addressA: string, addressB: string]) {
+    const result = await this.call("allowance", args)
     return result[0]
   }
 
@@ -230,9 +232,9 @@ export class Contract  {
     return result[0]
   }
 
-  async getReserves(): Promise<{_reserve0: ethers.BigNumber,_reserve1: ethers.BigNumber,_blockTimestampLast: number}> {
+  async getReserves(): Promise<{ _reserve0: ethers.BigNumber, _reserve1: ethers.BigNumber, _blockTimestampLast: number }> {
     const result = await this.call("getReserves", [])
-    return  {
+    return {
       _reserve0: result[0],
       _reserve1: result[1],
       _blockTimestampLast: result[2],
