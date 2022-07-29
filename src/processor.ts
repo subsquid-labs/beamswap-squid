@@ -117,8 +117,8 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
 
     const newSwapStat: Record<SwapPeriod, SwapStatPeriod> = {
         [SwapPeriod.DAY]: createSwapStat(SwapPeriod.DAY, end - DAY_MS, end),
-        [SwapPeriod.WEEK]: createSwapStat(SwapPeriod.DAY, Math.floor((end - WEEK_MS) / DAY_MS) * DAY_MS, end),
-        [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.DAY, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end)
+        [SwapPeriod.WEEK]: createSwapStat(SwapPeriod.WEEK, Math.floor((end - WEEK_MS) / DAY_MS) * DAY_MS, end),
+        [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.MONTH, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end)
     }
 
     const start = Math.max(...Object.values(newSwapStat).map(s => s.from.getTime()))
