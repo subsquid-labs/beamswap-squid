@@ -1,4 +1,6 @@
-import { Arg, Field, ObjectType, Query, Resolver, registerEnumType, Int } from 'type-graphql'
+import { Arg, Field, ObjectType, Query, Resolver, registerEnumType, Int, Info } from 'type-graphql'
+import { GraphQLResolveInfo } from 'graphql'
+import graphqlFields from 'graphql-fields'
 import 'reflect-metadata'
 import { EntityManager } from 'typeorm'
 import { Swap, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from '../../model'
@@ -85,9 +87,19 @@ enum Range {
 registerEnumType(Order, { name: 'Order' })
 registerEnumType(Range, { name: 'Range' })
 
+interface TopOptions {
+    type: SwapperType
+    limit: number
+    offset: number
+    order: Order
+    range: Range
+    requireVolumesPerDay: boolean
+    requireEntities: boolean
+}
+
 @Resolver()
 export class TradersResolver {
-    constructor(private tx: () => Promise<EntityManager>) { }
+    constructor(private tx: () => Promise<EntityManager>) {}
 
     @Query(() => TopObject || null)
     async getUsersTop(
@@ -99,12 +111,24 @@ export class TradersResolver {
         order: Order,
         @Arg('range', () => Range, { nullable: false })
         range: Range,
+        @Info()
+        info: GraphQLResolveInfo
     ): Promise<TopObject | null> {
         console.log(new Date(Date.now()), 'Query users top...')
 
-        const top = await this.getTop(SwapperType.USER, limit, offset, order, range)
+        const fields = graphqlFields(info)
 
-        return top
+        const result = await this.getTop({
+            type: SwapperType.USER,
+            limit,
+            offset,
+            order,
+            range,
+            requireVolumesPerDay: fields.top?.volumesPerDay != null,
+            requireEntities: fields.top != null,
+        })
+
+        return result
     }
 
     @Query(() => TopObject)
@@ -116,40 +140,57 @@ export class TradersResolver {
         @Arg('order', () => Order, { nullable: true, defaultValue: Order.DESC })
         order: Order,
         @Arg('range', () => Range, { nullable: false })
-        range: Range
+        range: Range,
+        @Info()
+        info: GraphQLResolveInfo
     ): Promise<TopObject> {
         console.log(new Date(Date.now()), 'Query pairs top...')
 
-        const result = await this.getTop(SwapperType.PAIR, limit, offset, order, range)
+        const fields = graphqlFields(info)
+
+        const result = await this.getTop({
+            type: SwapperType.PAIR,
+            limit,
+            offset,
+            order,
+            range,
+            requireVolumesPerDay: fields.top?.volumesPerDay != null,
+            requireEntities: fields.top != null,
+        })
 
         return result
     }
 
-    private async getTop(type: SwapperType, limit: number, offset: number, order: Order, range: Range) {
+    private async getTop(options: TopOptions) {
+        const { type, limit, offset, order, range, requireVolumesPerDay, requireEntities } = options
         const manager = await this.tx()
         const stat = await manager.getRepository(SwapStatPeriod).findOneBy({
-            id:
-                range === Range.DAY
-                    ? SwapPeriod.DAY
-                    : range === Range.WEEK
-                        ? SwapPeriod.WEEK
-                        : SwapPeriod.MONTH
+            id: range === Range.DAY ? SwapPeriod.DAY : range === Range.WEEK ? SwapPeriod.WEEK : SwapPeriod.MONTH,
         })
         assert(stat != null)
 
-        const top = await manager.find(Swapper, {
-            where: { type },
-            order: {
-                dayAmountUSD: range === Range.DAY ? order : undefined,
-                weekAmountUSD: range === Range.WEEK ? order : undefined,
-                monthAmountUSD: range === Range.MONTH ? order : undefined,
-            },
-            take: limit,
-            skip: offset,
-        })
-        const daysInfo = await new DayVolumeResolver(this.tx)
-            .getDayVolume(top.map(u => u.id), stat.from, stat.to)
-            .then(users => new Map(users.map(u => [u.id, u.volumesPerDay])))
+        const top = requireEntities
+            ? await manager.find(Swapper, {
+                  where: { type },
+                  order: {
+                      dayAmountUSD: range === Range.DAY ? order : undefined,
+                      weekAmountUSD: range === Range.WEEK ? order : undefined,
+                      monthAmountUSD: range === Range.MONTH ? order : undefined,
+                  },
+                  take: limit,
+                  skip: offset,
+              })
+            : []
+
+        const daysInfo = requireVolumesPerDay
+            ? await new DayVolumeResolver(this.tx)
+                  .getDayVolume(
+                      top.map((u) => u.id),
+                      stat.from,
+                      stat.to
+                  )
+                  .then((users) => new Map(users.map((u) => [u.id, u.volumesPerDay])))
+            : new Map()
 
         return new TopObject({
             timestamp: stat.to,
@@ -165,21 +206,19 @@ export class TradersResolver {
                                 range === Range.DAY
                                     ? s.dayAmountUSD
                                     : range === Range.WEEK
-                                        ? s.weekAmountUSD
-                                        : s.monthAmountUSD,
-                            volumesPerDay: daysInfo.get(s.id)
+                                    ? s.weekAmountUSD
+                                    : s.monthAmountUSD,
+                            volumesPerDay: daysInfo.get(s.id),
                         })
                 )
-                .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1))
+                .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1)),
         })
     }
 }
 
-
-
 @Resolver()
 export class DayVolumeResolver {
-    constructor(private tx: () => Promise<EntityManager>) { }
+    constructor(private tx: () => Promise<EntityManager>) {}
 
     @Query(() => [SwapInfoObject] || null)
     async getDayVolume(
@@ -192,12 +231,12 @@ export class DayVolumeResolver {
     ): Promise<SwapInfoObject[]> {
         const manager = await this.tx()
 
-        const users = new Map(ids.map(id => [id, new SwapInfoObject({ id, volumesPerDay: [] })]))
+        const users = new Map(ids.map((id) => [id, new SwapInfoObject({ id, volumesPerDay: [] })]))
         const swaps = await manager.getRepository(Swap).find({
             where: {
                 to: In(ids),
-                timestamp: Between(from, to)
-            }
+                timestamp: Between(from, to),
+            },
         })
 
         for (const swap of swaps) {
@@ -206,11 +245,11 @@ export class DayVolumeResolver {
 
             const timestamp = new Date(Math.ceil(swap.timestamp.getTime() / DAY_MS) * DAY_MS - 1)
 
-            let amountUSDperDay = user.volumesPerDay.find(d => d.timestamp.getTime() === timestamp.getTime())
+            let amountUSDperDay = user.volumesPerDay.find((d) => d.timestamp.getTime() === timestamp.getTime())
             if (amountUSDperDay == null) {
                 amountUSDperDay = new SwapDayVolumeObject({
                     timestamp,
-                    amountUSD: '0'
+                    amountUSD: '0',
                 })
                 user.volumesPerDay.push(amountUSDperDay)
             }
