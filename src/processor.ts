@@ -102,7 +102,7 @@ const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
 
 async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBlock) {
-    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: '0' })
+    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
 
     if (lastUpdateTopTimestamp == null) {
         lastUpdateTopTimestamp = swapStat?.to.getTime() || -topUpdateInterval
