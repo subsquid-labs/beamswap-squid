@@ -201,6 +201,8 @@ export class TradersResolver {
                   .then((users) => new Map(users.map((u) => [u.id, u.volumesPerDay])))
             : new Map()
 
+        console.table(top)
+
         return new TopObject({
             to: stat.to,
             from: stat.from,
@@ -253,7 +255,7 @@ export class DayVolumeResolver {
             const user = users.get(swap.to)
             assert(user != null)
 
-            const timestamp = new Date(Math.ceil(swap.timestamp.getTime() / DAY_MS) * DAY_MS - 1)
+            const timestamp = new Date(Math.max(Math.floor(swap.timestamp.getTime() / DAY_MS) * DAY_MS, from.getTime()))
 
             let amountUSDperDay = user.volumesPerDay.find((d) => d.day.getTime() === timestamp.getTime())
             if (amountUSDperDay == null) {
