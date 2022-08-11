@@ -121,7 +121,7 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.MONTH, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end)
     }
 
-    const start = Math.max(...Object.values(newSwapStat).map(s => s.from.getTime()))
+    const start = Math.min(...Object.values(newSwapStat).map(s => s.from.getTime()))
 
     const swaps = await ctx.store.find(Swap, {
         where: { timestamp: Between(new Date(start), new Date(end)) },
