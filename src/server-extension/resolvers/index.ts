@@ -29,7 +29,7 @@ class SwapDayVolumeObject {
     }
 
     @Field(() => Date, { nullable: false })
-    timestamp!: Date
+    day!: Date
 
     @Field(() => String, { nullable: false })
     amountUSD!: string
@@ -58,7 +58,10 @@ class TopObject {
     }
 
     @Field(() => Date, { nullable: false })
-    timestamp!: Date
+    from!: Date
+
+    @Field(() => Date, { nullable: false })
+    to!: Date
 
     @Field(() => Int, { nullable: false })
     count!: number
@@ -82,6 +85,12 @@ enum Range {
     DAY = '24 HOUR',
     WEEK = '7 DAY',
     MONTH = '30 DAY',
+}
+
+const rangeToSwapPeriod: Record<Range, SwapPeriod> = {
+    [Range.DAY]: SwapPeriod.DAY,
+    [Range.WEEK]: SwapPeriod.WEEK,
+    [Range.MONTH]: SwapPeriod.MONTH,
 }
 
 registerEnumType(Order, { name: 'Order' })
@@ -165,7 +174,7 @@ export class TradersResolver {
         const { type, limit, offset, order, range, requireVolumesPerDay, requireEntities } = options
         const manager = await this.tx()
         const stat = await manager.getRepository(SwapStatPeriod).findOneBy({
-            id: range === Range.DAY ? SwapPeriod.DAY : range === Range.WEEK ? SwapPeriod.WEEK : SwapPeriod.MONTH,
+            id: rangeToSwapPeriod[range],
         })
         assert(stat != null)
 
@@ -193,7 +202,8 @@ export class TradersResolver {
             : new Map()
 
         return new TopObject({
-            timestamp: stat.to,
+            to: stat.to,
+            from: stat.from,
             count: type === SwapperType.PAIR ? stat.pairsCount : stat.usersCount,
             totalAmountUSD: stat.totalAmountUSD,
             swapsCount: stat.swapsCount,
@@ -245,10 +255,10 @@ export class DayVolumeResolver {
 
             const timestamp = new Date(Math.ceil(swap.timestamp.getTime() / DAY_MS) * DAY_MS - 1)
 
-            let amountUSDperDay = user.volumesPerDay.find((d) => d.timestamp.getTime() === timestamp.getTime())
+            let amountUSDperDay = user.volumesPerDay.find((d) => d.day.getTime() === timestamp.getTime())
             if (amountUSDperDay == null) {
                 amountUSDperDay = new SwapDayVolumeObject({
-                    timestamp,
+                    day: timestamp,
                     amountUSD: '0',
                 })
                 user.volumesPerDay.push(amountUSDperDay)
