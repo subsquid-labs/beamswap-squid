@@ -2,7 +2,6 @@ import { EvmLogEvent, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Bundle, Pair, Token, UniswapFactory } from '../model'
 import * as factoryAbi from '../types/abi/factory'
 import { createToken } from './helpers'
-import { getAddress } from 'ethers/lib/utils'
 import { BatchContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import { ZERO_BD } from '../consts'
@@ -12,10 +11,9 @@ export async function handleNewPair(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const evmLog = event.args
-    const contractAddress = getAddress(evmLog.address)
+    const contractAddress = event.args.address
 
-    const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(evmLog)
+    const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(event.args)
 
     // load factory (create if first exchange)
     let factory = await ctx.store.get(UniswapFactory, contractAddress)
@@ -42,11 +40,11 @@ export async function handleNewPair(
     await ctx.store.save(factory)
 
     // create the tokens
-    const token0 = await getToken(ctx, block, data.token0)
-    const token1 = await getToken(ctx, block, data.token1)
+    const token0 = await getToken(ctx, block, data.token0.toLowerCase())
+    const token1 = await getToken(ctx, block, data.token1.toLowerCase())
 
     const pair = new Pair({
-        id: data.pair,
+        id: data.pair.toLowerCase(),
         token0,
         token1,
         liquidityProviderCount: 0,

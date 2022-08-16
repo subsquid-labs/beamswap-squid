@@ -6,14 +6,19 @@ type UniswapFactory @entity {
   pairCount: Int!
 
   # total volume
+  "BigDecimal"
   totalVolumeUSD: String!
+  "BigDecimal"
   totalVolumeETH: String!
 
   # untracked values - less confident USD scores
+  "BigDecimal"
   untrackedVolumeUSD: String!
 
   # total liquidity
+  "BigDecimal"
   totalLiquidityUSD: String!
+  "BigDecimal"
   totalLiquidityETH: String!
 
   # transactions
@@ -33,17 +38,22 @@ type Token @entity {
   totalSupply: String!
 
   # token specific volume
+  "BigDecimal"
   tradeVolume: String!
+  "BigDecimal"
   tradeVolumeUSD: String!
+  "BigDecimal"
   untrackedVolumeUSD: String!
 
   # transactions across all pairs
   txCount: Int!
 
   # liquidity across all pairs
+  "BigDecimal"
   totalLiquidity: String!
 
   # derived prices
+  "BigDecimal"
   derivedETH: String!
 }
 
@@ -54,24 +64,36 @@ type Pair @entity {
   # mirrored from the smart contract
   token0: Token!
   token1: Token!
+  "BigDecimal"
   reserve0: String!
+  "BigDecimal"
   reserve1: String!
+  "BigDecimal"
   totalSupply: String!
 
   # derived liquidity
+  "BigDecimal"
   reserveETH: String!
+  "BigDecimal"
   reserveUSD: String!
   # used for separating per pair reserves and global
+  "BigDecimal"
   trackedReserveETH: String!
 
   # Price in terms of the asset pair
+  "BigDecimal"
   token0Price: String!
+  "BigDecimal"
   token1Price: String!
 
   # lifetime volume stats
+  "BigDecimal"
   volumeToken0: String!
+  "BigDecimal"
   volumeToken1: String!
+  "BigDecimal"
   volumeUSD: String!
+  "BigDecimal"
   untrackedVolumeUSD: String!
   txCount: Int!
 
@@ -100,6 +122,7 @@ type LiquidityPosition @entity {
   id: ID!
   user: User!
   pair: Pair!
+  "BigDecimal"
   liquidityTokenBalance: String!
 }
 
@@ -114,57 +137,6 @@ type Transaction @entity {
   swaps: [ID!]!
 }
 
-# type Mint @entity {
-#   # transaction hash + "-" + index in mints Transaction array
-#   id: ID!
-#   transaction: Transaction!
-#   timestamp: DateTime! # need this to pull recent txns for specific token or pair
-#   pair: Pair!
-
-#   # populated from the primary Transfer event
-#   to: String!
-#   liquidity: String!
-
-#   # populated from the Mint event
-#   sender: String
-#   amount0: String
-#   amount1: String
-#   logIndex: Int
-#   # derived amount based on available prices of tokens
-#   amountUSD: String
-
-#   # optional fee fields, if a Transfer event is fired in _mintFee
-#   feeTo: String
-#   feeLiquidity: String
-# }
-
-# type Burn @entity {
-#   # transaction hash + "-" + index in mints Transaction array
-#   id: ID!
-#   transaction: Transaction!
-#   timestamp: DateTime! # need this to pull recent txns for specific token or pair
-#   pair: Pair!
-
-#   # populated from the primary Transfer event
-#   liquidity: String!
-
-#   # populated from the Burn event
-#   sender: String
-#   amount0: String
-#   amount1: String
-#   to: String
-#   logIndex: Int
-#   # derived amount based on available prices of tokens
-#   amountUSD: String
-
-#   # mark uncomplete in ETH case
-#   needsComplete: Boolean!
-
-#   # optional fee fields, if a Transfer event is fired in _mintFee
-#   feeTo: String
-#   feeLiquidity: String
-# }
-
 type Swap @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
@@ -177,19 +149,24 @@ type Swap @entity {
   # populated from the Swap event
   sender: String!
   from: String # the EOA that initiated the txn
+  "BigDecimal"
   amount0In: String!
+  "BigDecimal"
   amount1In: String!
+  "BigDecimal"
   amount0Out: String!
+  "BigDecimal"
   amount1Out: String!
   to: String! @index
   logIndex: Int
 
-  # derived info
-  amountUSD: String!
+  "BigDecimal"
+  amountUSD: String! # derived info
 }
 
 # stores for USD calculations
 type Bundle @entity {
   id: ID!
+  "BigDecimal"
   ethPrice: String! # price of ETH usd
 }

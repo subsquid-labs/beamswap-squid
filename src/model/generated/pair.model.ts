@@ -1,11 +1,9 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, OneToMany as OneToMany_} from "typeorm"
 import {Token} from "./token.model"
 import {LiquidityPosition} from "./liquidityPosition.model"
-import {Mint} from "./mint.model"
-import {Burn} from "./burn.model"
 import {Swap} from "./swap.model"
-import bigDecimal from "js-big-decimal"
 import {bigDecimalTransformer} from "./marshal"
+import { Big as BigDecimal } from 'big.js'
 
 @Entity_()
 export class Pair {
@@ -24,41 +22,41 @@ export class Pair {
   @ManyToOne_(() => Token, {nullable: true})
   token1!: Token
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  reserve0!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  reserve0!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  reserve1!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  reserve1!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  totalSupply!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  totalSupply!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  reserveETH!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  reserveETH!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  reserveUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  reserveUSD!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  trackedReserveETH!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  trackedReserveETH!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  token0Price!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  token0Price!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  token1Price!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  token1Price!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  volumeToken0!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  volumeToken0!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  volumeToken1!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  volumeToken1!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  volumeUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  volumeUSD!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  untrackedVolumeUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  untrackedVolumeUSD!: BigDecimal
 
   @Column_("int4", {nullable: false})
   txCount!: number
@@ -74,12 +72,6 @@ export class Pair {
 
   @OneToMany_(() => LiquidityPosition, e => e.pair)
   liquidityPositions!: LiquidityPosition[]
-
-  @OneToMany_(() => Mint, e => e.pair)
-  mints!: Mint[]
-
-  @OneToMany_(() => Burn, e => e.pair)
-  burns!: Burn[]
 
   @OneToMany_(() => Swap, e => e.pair)
   swaps!: Swap[]

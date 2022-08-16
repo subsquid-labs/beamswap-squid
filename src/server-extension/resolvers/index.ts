@@ -4,10 +4,10 @@ import graphqlFields from 'graphql-fields'
 import 'reflect-metadata'
 import { EntityManager } from 'typeorm'
 import { Swap, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from '../../model'
-import bigDecimal from 'js-big-decimal'
 import { DAY_MS } from '../../consts'
 import { In, Between } from 'typeorm'
 import assert from 'assert'
+import { Big as BigDecimal } from 'big.js'
 
 @ObjectType()
 class SwapInfoObject {
@@ -223,7 +223,12 @@ export class TradersResolver {
                             volumesPerDay: daysInfo.get(s.id),
                         })
                 )
-                .sort((a, b) => bigDecimal.compareTo(a.amountUSD, b.amountUSD) * (order === Order.DESC ? -1 : 1)),
+                .sort((a, b) =>
+                    BigDecimal(a.amountUSD)
+                        .minus(b.amountUSD)
+                        .mul(order === Order.DESC ? -1 : 1)
+                        .toNumber()
+                ),
         })
     }
 }
@@ -265,7 +270,7 @@ export class DayVolumeResolver {
                 })
                 user.volumesPerDay.push(amountUSDperDay)
             }
-            amountUSDperDay.amountUSD = bigDecimal.add(amountUSDperDay.amountUSD, swap.amountUSD.getValue())
+            amountUSDperDay.amountUSD = BigDecimal(amountUSDperDay.amountUSD).add(swap.amountUSD).toFixed()
         }
 
         return [...users.values()]

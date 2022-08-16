@@ -1,11 +1,10 @@
 import { SubstrateBlock } from '@subsquid/substrate-processor'
-import { ADDRESS_ZERO, PRECISION, ZERO_BD } from '../consts'
-import { Transaction, Mint, Burn, Swap } from '../model'
+import { ADDRESS_ZERO, ZERO_BD } from '../consts'
+import { Transaction, Swap } from '../model'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import * as pairAbi from '../types/abi/pair'
 import { convertTokenToDecimal, createLiquidityPosition } from './helpers'
 import assert from 'assert'
-import { getAddress } from 'ethers/lib/utils'
 import { BatchContext, EvmLogEvent } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import {
@@ -16,19 +15,10 @@ import {
     getBundle,
     getUniswap,
     getTransaction,
-    getMint,
-    getBurn,
     addTransaction,
     addSwap,
-    addMint,
-    addBurn,
     getToken,
 } from './entityUtils'
-import bigDecimal from 'js-big-decimal'
-
-async function isMintComplete(store: Store, mintId: string): Promise<boolean> {
-    return (await getMint(store, mintId))?.sender != null // sufficient checks
-}
 
 const transferEventAbi = pairAbi.events['Transfer(address,address,uint256)']
 
@@ -37,7 +27,7 @@ export async function handleTransfer(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
 
     const data = transferEventAbi.decode(event.args)
     // ignore initial transfers for first adds
@@ -73,95 +63,12 @@ export async function handleTransfer(
 
     // mints
     if (from.id === ADDRESS_ZERO) {
-        const mintsLength = transaction.mints.length
-        // update total supply
-        pair.totalSupply = pair.totalSupply.add(value)
-
-        // create new mint if no mints so far or if last one is done already
-        const isLastComplete =
-            mintsLength > 0 ? await isMintComplete(ctx.store, transaction.mints[mintsLength - 1]) : false
-        if (mintsLength === 0 || isLastComplete) {
-            const mint = new Mint({
-                id: `${event.evmTxHash}-${mintsLength}`,
-                transaction,
-                pair,
-                to: to.id,
-                liquidity: value,
-                timestamp: transaction.timestamp,
-            })
-            addMint(mint)
-
-            // update mints in transaction
-            transaction.mints.push(mint.id)
-        }
-    }
-
-    // case where direct send first on ETH withdrawls
-    if (to.id === pair.id) {
-        const burnsLength = transaction.burns.length
-
-        const burn = new Burn({
-            id: `${event.evmTxHash}-${burnsLength}`,
-            transaction,
-            pair,
-            liquidity: value,
-            timestamp: transaction.timestamp,
-            to: to.id,
-            sender: from.id,
-            needsComplete: true,
-        })
-
-        addBurn(burn)
-
-        // TODO: Consider using .concat() for handling array updates to protect
-        // against unintended side effects for other code paths.
-        transaction.burns.push(burn.id)
+        pair.totalSupply = pair.totalSupply.plus(value)
     }
 
     // burn
     if (to.id == ADDRESS_ZERO && from.id == pair.id) {
-        pair.totalSupply = pair.totalSupply.subtract(value)
-
-        // this is a new instance of a logical burn
-        const burnsLength = transaction.burns.length
-
-        const currentBurn = await getBurn(ctx.store, transaction.burns[burnsLength - 1])
-
-        const burn = currentBurn?.needsComplete
-            ? currentBurn
-            : new Burn({
-                  id: `${event.evmTxHash}-${burnsLength}`,
-                  transaction,
-                  pair,
-                  needsComplete: false,
-                  liquidity: value,
-                  timestamp: transaction.timestamp,
-              })
-
-        const mintsLength = transaction.mints.length
-        const isLastComplete =
-            mintsLength > 0 ? await isMintComplete(ctx.store, transaction.mints[mintsLength - 1]) : true
-        // if this logical burn included a fee mint, account for this
-        if (!isLastComplete) {
-            const mint = await getMint(ctx.store, transaction.mints[mintsLength - 1])
-            assert(mint != null)
-
-            burn.feeTo = mint.to
-            burn.feeLiquidity = mint.liquidity
-            // remove the logical mint
-            // await ctx.store.remove(mint)
-            // update the transaction
-
-            // TODO: Consider using .slice().pop() to protect against unintended
-            // side effects for other code paths.
-            transaction.mints.pop()
-        }
-        addBurn(burn)
-
-        // if accessing last one, replace it
-        if (burn.needsComplete) transaction.burns.pop()
-
-        transaction.burns.push(burn.id)
+        pair.totalSupply = pair.totalSupply.minus(value)
     }
 
     if (from.id !== ADDRESS_ZERO && from.id !== pair.id) {
@@ -206,7 +113,7 @@ export async function handleSync(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
 
     const data = syncEventAbi.decode(event.args)
 
@@ -221,16 +128,16 @@ export async function handleSync(
     // reset factory liquidity by subtracting onluy tarcked liquidity
 
     // reset token total liquidity amounts
-    token0.totalLiquidity = token0.totalLiquidity.subtract(pair.reserve0)
-    token1.totalLiquidity = token1.totalLiquidity.subtract(pair.reserve1)
+    token0.totalLiquidity = token0.totalLiquidity.minus(pair.reserve0)
+    token1.totalLiquidity = token1.totalLiquidity.minus(pair.reserve1)
 
-    uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.subtract(pair.trackedReserveETH)
+    uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH)
 
     pair.reserve0 = convertTokenToDecimal(data.reserve0.toBigInt(), Number(token0.decimals))
     pair.reserve1 = convertTokenToDecimal(data.reserve1.toBigInt(), Number(token1.decimals))
 
-    pair.token0Price = pair.reserve1.compareTo(ZERO_BD) !== 0 ? pair.reserve0.divide(pair.reserve1, PRECISION) : ZERO_BD
-    pair.token1Price = pair.reserve0.compareTo(ZERO_BD) !== 0 ? pair.reserve1.divide(pair.reserve0, PRECISION) : ZERO_BD
+    pair.token0Price = !pair.reserve1.eq(ZERO_BD) ? pair.reserve0.div(pair.reserve1) : ZERO_BD
+    pair.token1Price = !pair.reserve0.eq(ZERO_BD) ? pair.reserve1.div(pair.reserve0) : ZERO_BD
 
     // update ETH price now that reserves could have changed
 
@@ -240,26 +147,24 @@ export async function handleSync(
     token1.derivedETH = await findEthPerToken(ctx.store, token1.id)
 
     // get tracked liquidity - will be 0 if neither is in whitelist
-    const trackedLiquidityETH =
-        bundle.ethPrice.compareTo(ZERO_BD) !== 0
-            ? (await getTrackedLiquidityUSD(ctx.store, token0.id, pair.reserve0, token1.id, pair.reserve1)).divide(
-                  bundle.ethPrice,
-                  PRECISION
-              )
-            : ZERO_BD
+    const trackedLiquidityETH = !bundle.ethPrice.eq(ZERO_BD)
+        ? (await getTrackedLiquidityUSD(ctx.store, token0.id, pair.reserve0, token1.id, pair.reserve1)).div(
+              bundle.ethPrice
+          )
+        : ZERO_BD
 
     // use derived amounts within pair
     pair.trackedReserveETH = trackedLiquidityETH
-    pair.reserveETH = pair.reserve0.multiply(token0.derivedETH).add(pair.reserve1.multiply(token1.derivedETH))
-    pair.reserveUSD = pair.reserveETH.multiply(bundle.ethPrice)
+    pair.reserveETH = pair.reserve0.mul(token0.derivedETH).plus(pair.reserve1.mul(token1.derivedETH))
+    pair.reserveUSD = pair.reserveETH.mul(bundle.ethPrice)
 
     // use tracked amounts globally
-    uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.add(trackedLiquidityETH)
-    uniswap.totalLiquidityUSD = uniswap.totalLiquidityETH.add(bundle.ethPrice)
+    uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.plus(trackedLiquidityETH)
+    uniswap.totalLiquidityUSD = uniswap.totalLiquidityETH.plus(bundle.ethPrice)
 
     // now correctly set liquidity amounts for each token
-    token0.totalLiquidity = token0.totalLiquidity.add(pair.reserve0)
-    token1.totalLiquidity = token1.totalLiquidity.add(pair.reserve1)
+    token0.totalLiquidity = token0.totalLiquidity.plus(pair.reserve0)
+    token1.totalLiquidity = token1.totalLiquidity.plus(pair.reserve1)
 }
 
 const MintAbi = pairAbi.events['Mint(address,uint256,uint256)']
@@ -269,46 +174,26 @@ export async function handleMint(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
 
     const data = MintAbi.decode(event.args)
 
-    const bundle = await getBundle(ctx.store)
     const uniswap = await getUniswap(ctx.store)
 
     const transaction = await getTransaction(ctx.store, event.evmTxHash)
     assert(transaction != null, event.evmTxHash)
 
-    const mintsLength = transaction.mints.length
-    const mint = await getMint(ctx.store, transaction.mints[mintsLength - 1])
-    assert(mint != null, transaction.mints[mintsLength - 1])
-
     const pair = await getPair(ctx.store, contractAddress)
 
     const token0 = await getToken(ctx.store, pair.token0.id)
-    const token0Amount = convertTokenToDecimal(data.amount0.toBigInt(), Number(token0.decimals))
     token0.txCount += 1
 
     const token1 = await getToken(ctx.store, pair.token1.id)
-    const token1Amount = convertTokenToDecimal(data.amount1.toBigInt(), Number(token1.decimals))
     token1.txCount += 1
-
-    // get new amounts of USD and ETH for tracking
-
-    const amountTotalUSD = token1.derivedETH
-        .multiply(token1Amount)
-        .add(token0.derivedETH.multiply(token0Amount))
-        .multiply(bundle.ethPrice)
 
     // update txn counts
     pair.txCount += 1
     uniswap.txCount += 1
-
-    mint.sender = data.sender
-    mint.amount0 = token0Amount
-    mint.amount1 = token1Amount
-    mint.logIndex = event.pos
-    mint.amountUSD = amountTotalUSD
 
     // update the LP position
     await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: data.sender })
@@ -330,20 +215,16 @@ export async function handleBurn(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
 
     const data = BurnAbi.decode(event.args)
 
-    const bundle = await getBundle(ctx.store)
     const uniswap = await getUniswap(ctx.store)
 
     const transaction = await getTransaction(ctx.store, event.evmTxHash)
     assert(transaction != null)
 
     const pair = await getPair(ctx.store, contractAddress)
-
-    const burn = await getBurn(ctx.store, transaction.burns[transaction.burns.length - 1])
-    assert(burn != null)
 
     // update txn counts
     pair.txCount += 1
@@ -353,26 +234,10 @@ export async function handleBurn(
 
     // update txn counts
     const token0 = await getToken(ctx.store, pair.token0.id)
-    const token0Amount = convertTokenToDecimal(data.amount0.toBigInt(), Number(token0.decimals))
     token0.txCount += 1
 
     const token1 = await getToken(ctx.store, pair.token1.id)
-    const token1Amount = convertTokenToDecimal(data.amount1.toBigInt(), Number(token1.decimals))
     token1.txCount += 1
-
-    // get new amounts of USD and ETH for tracking
-    const amountTotalUSD = token1.derivedETH
-        .multiply(token1Amount)
-        .add(token0.derivedETH.multiply(token0Amount))
-        .multiply(bundle.ethPrice)
-
-    // update burn
-    burn.sender = data.sender
-    burn.amount0 = token0Amount
-    burn.amount1 = token1Amount
-    // burn.to = event.params.to
-    burn.logIndex = event.pos
-    burn.amountUSD = amountTotalUSD
 
     await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: data.sender })
 }
@@ -384,7 +249,7 @@ export async function handleSwap(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<void> {
-    const contractAddress = getAddress(event.args.address)
+    const contractAddress = event.args.address
 
     const data = SwapAbi.decode(event.args)
 
@@ -396,43 +261,39 @@ export async function handleSwap(
     const token0 = await getToken(ctx.store, pair.token0.id)
     const amount0In = convertTokenToDecimal(data.amount0In.toBigInt(), Number(token0.decimals))
     const amount0Out = convertTokenToDecimal(data.amount0Out.toBigInt(), Number(token0.decimals))
-    const amount0Total = amount0Out.add(amount0In)
+    const amount0Total = amount0Out.plus(amount0In)
 
     const token1 = await getToken(ctx.store, pair.token1.id)
     const amount1In = convertTokenToDecimal(data.amount1In.toBigInt(), Number(token1.decimals))
     const amount1Out = convertTokenToDecimal(data.amount1Out.toBigInt(), Number(token1.decimals))
-    const amount1Total = amount1Out.add(amount1In)
+    const amount1Total = amount1Out.plus(amount1In)
 
     // get total amounts of derived USD and ETH for tracking
-    const derivedAmountETH = token1.derivedETH
-        .multiply(amount1Total)
-        .add(token0.derivedETH.multiply(amount0Total))
-        .divide(new bigDecimal(2), PRECISION)
-    const derivedAmountUSD = derivedAmountETH.multiply(bundle.ethPrice)
+    const derivedAmountETH = token1.derivedETH.mul(amount1Total).plus(token0.derivedETH.mul(amount0Total)).div(2)
+    const derivedAmountUSD = derivedAmountETH.mul(bundle.ethPrice)
     // only accounts for volume through white listed tokens
     const trackedAmountUSD = await getTrackedVolumeUSD(ctx.store, token0.id, amount0Total, token1.id, amount1Total)
-    const trackedAmountETH =
-        bundle.ethPrice.compareTo(ZERO_BD) === 0 ? ZERO_BD : trackedAmountUSD.divide(bundle.ethPrice, PRECISION)
+    const trackedAmountETH = bundle.ethPrice.eq(ZERO_BD) ? ZERO_BD : trackedAmountUSD.div(bundle.ethPrice)
     // update token0 global volume and token liquidity stats
-    token0.tradeVolume = token0.tradeVolume.add(amount0Total)
-    token0.tradeVolumeUSD = token0.tradeVolumeUSD.add(trackedAmountUSD)
-    token0.untrackedVolumeUSD = token0.untrackedVolumeUSD.add(derivedAmountUSD)
+    token0.tradeVolume = token0.tradeVolume.plus(amount0Total)
+    token0.tradeVolumeUSD = token0.tradeVolumeUSD.plus(trackedAmountUSD)
+    token0.untrackedVolumeUSD = token0.untrackedVolumeUSD.plus(derivedAmountUSD)
     token0.txCount += 1
     // update token1 global volume and token liquidity stats
-    token1.tradeVolume = token1.tradeVolume.add(amount1Total)
-    token1.tradeVolumeUSD = token1.tradeVolumeUSD.add(trackedAmountUSD)
-    token1.untrackedVolumeUSD = token1.untrackedVolumeUSD.add(derivedAmountUSD)
+    token1.tradeVolume = token1.tradeVolume.plus(amount1Total)
+    token1.tradeVolumeUSD = token1.tradeVolumeUSD.plus(trackedAmountUSD)
+    token1.untrackedVolumeUSD = token1.untrackedVolumeUSD.plus(derivedAmountUSD)
     token1.txCount += 1
     // update pair volume data, use tracked amount if we have it as its probably more accurate
-    pair.volumeUSD = pair.volumeUSD.add(trackedAmountUSD)
-    pair.volumeToken0 = pair.volumeToken0.add(amount0Total)
-    pair.volumeToken1 = pair.volumeToken1.add(amount1Total)
-    pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.add(derivedAmountUSD)
+    pair.volumeUSD = pair.volumeUSD.plus(trackedAmountUSD)
+    pair.volumeToken0 = pair.volumeToken0.plus(amount0Total)
+    pair.volumeToken1 = pair.volumeToken1.plus(amount1Total)
+    pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
     pair.txCount += 1
     // update global values, only used tracked amounts for volume
-    uniswap.totalVolumeUSD = uniswap.totalVolumeUSD.add(trackedAmountUSD)
-    uniswap.totalVolumeETH = uniswap.totalVolumeETH.add(trackedAmountETH)
-    uniswap.untrackedVolumeUSD = uniswap.untrackedVolumeUSD.add(derivedAmountUSD)
+    uniswap.totalVolumeUSD = uniswap.totalVolumeUSD.plus(trackedAmountUSD)
+    uniswap.totalVolumeETH = uniswap.totalVolumeETH.plus(trackedAmountETH)
+    uniswap.untrackedVolumeUSD = uniswap.untrackedVolumeUSD.plus(derivedAmountUSD)
     uniswap.txCount += 1
 
     let transaction = await getTransaction(ctx.store, event.evmTxHash)
@@ -458,14 +319,14 @@ export async function handleSwap(
         pair,
         timestamp: new Date(block.timestamp),
         logIndex: event.pos,
-        sender: data.sender,
+        sender: data.sender.toLowerCase(),
         amount0In,
         amount1In,
         amount0Out,
         amount1Out,
-        to: data.to,
+        to: data.to.toLowerCase(),
         // from:
-        amountUSD: (trackedAmountUSD.compareTo(ZERO_BD) === 0 ? derivedAmountUSD : trackedAmountUSD).round(PRECISION),
+        amountUSD: trackedAmountUSD.eq(ZERO_BD) ? derivedAmountUSD : trackedAmountUSD,
     })
 
     addSwap(swap)

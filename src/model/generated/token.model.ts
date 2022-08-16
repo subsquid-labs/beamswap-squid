@@ -1,7 +1,6 @@
-import bigDecimal from "js-big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
-import * as marshal from "./marshal"
 import {bigDecimalTransformer} from "./marshal"
+import { Big as BigDecimal } from 'big.js'
 
 @Entity_()
 export class Token {
@@ -21,24 +20,24 @@ export class Token {
   @Column_("int4", {nullable: false})
   decimals!: number
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  totalSupply!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  totalSupply!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  tradeVolume!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  tradeVolume!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  tradeVolumeUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  tradeVolumeUSD!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  untrackedVolumeUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  untrackedVolumeUSD!: BigDecimal
 
   @Column_("int4", {nullable: false})
   txCount!: number
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  totalLiquidity!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  totalLiquidity!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  derivedETH!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  derivedETH!: BigDecimal
 }

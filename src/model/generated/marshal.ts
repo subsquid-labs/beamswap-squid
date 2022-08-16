@@ -1,6 +1,5 @@
 import assert from 'assert'
-import bigDecimal from 'js-big-decimal'
-
+import { Big as BigDecimal } from 'big.js'
 
 export interface Marshal<T, S> {
     fromJSON(value: unknown): T
@@ -126,19 +125,18 @@ export const bigintTransformer = {
     }
 }
 
+export const bigDecimalTransformer = {
+    to(x?: BigDecimal) {
+        return x?.toFixed()
+    },
+    from(s?: string): BigDecimal | undefined {
+        return s == null ? undefined : BigDecimal(s)
+    }
+}
 
 export function enumFromJson<E extends object>(json: unknown, enumObject: E): E[keyof E] {
     assert(typeof json == 'string', 'invalid enum value')
     let val = (enumObject as any)[json]
     assert(typeof val == 'string', `invalid enum value`)
     return val as any
-}
-
-export const bigDecimalTransformer = {
-    to(x?: bigDecimal) {
-        return x?.getValue()
-    },
-    from(s?: string): bigDecimal | undefined {
-        return s == null ? undefined : new bigDecimal(s)
-    }
 }

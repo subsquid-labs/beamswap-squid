@@ -2,14 +2,14 @@ import { getAddress } from '@ethersproject/address'
 import { Store } from '@subsquid/typeorm-store'
 import assert from 'assert'
 import { FACTORY_ADDRESS } from '../consts'
-import { UniswapFactory, Bundle, User, Pair, Token, Mint, LiquidityPosition, Burn, Transaction, Swap } from '../model'
+import { UniswapFactory, Bundle, User, Pair, Token, LiquidityPosition, Transaction, Swap } from '../model'
 import { createUser } from './helpers'
 
 let uniswap: UniswapFactory | undefined
 
 export async function getUniswap(store: Store) {
     if (!uniswap) {
-        uniswap = await store.get(UniswapFactory, getAddress(FACTORY_ADDRESS))
+        uniswap = await store.get(UniswapFactory, FACTORY_ADDRESS)
         assert(uniswap != null)
     }
 
@@ -97,40 +97,6 @@ export function addSwap(item: Swap) {
     swaps.set(item.id, item)
 }
 
-const burns: Map<string, Burn> = new Map()
-
-export async function getBurn(store: Store, id: string) {
-    let item = burns.get(id)
-
-    if (item == null) {
-        item = await store.get(Burn, id)
-        if (item) burns.set(item.id, item)
-    }
-
-    return item
-}
-
-export function addBurn(item: Burn) {
-    burns.set(item.id, item)
-}
-
-const mints: Map<string, Mint> = new Map()
-
-export async function getMint(store: Store, id: string) {
-    let item = mints.get(id)
-
-    if (item == null) {
-        item = await store.get(Mint, id)
-        if (item) mints.set(item.id, item)
-    }
-
-    return item
-}
-
-export function addMint(item: Mint) {
-    mints.set(item.id, item)
-}
-
 const positions: Map<string, LiquidityPosition> = new Map()
 
 export async function getPosition(store: Store, id: string) {
@@ -160,14 +126,8 @@ export async function saveAll(store: Store) {
     await store.save([...transactions.values()])
     transactions.clear()
 
-    await store.save([...mints.values()])
-    mints.clear()
-
     await store.save([...swaps.values()])
     swaps.clear()
-
-    await store.save([...burns.values()])
-    burns.clear()
 
     await store.save([...users.values()])
     users.clear()

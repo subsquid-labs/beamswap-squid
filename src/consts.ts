@@ -1,4 +1,4 @@
-import bigDecimal from 'js-big-decimal'
+import { Big as BigDecimal } from 'big.js'
 
 export const knownContracts: ReadonlyArray<string> = []
 
@@ -10,8 +10,8 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 
 export const ZERO_BI = 0n
 export const ONE_BI = 1n
-export const ZERO_BD = new bigDecimal(0)
-export const ONE_BD = new bigDecimal(1)
+export const ZERO_BD = BigDecimal(0)
+export const ONE_BD = BigDecimal(1)
 export const BI_18 = 1000000000000000000n
 
 export const PRECISION = 32

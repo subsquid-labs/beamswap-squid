@@ -1,8 +1,8 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 import {Transaction} from "./transaction.model"
 import {Pair} from "./pair.model"
-import bigDecimal from "js-big-decimal"
 import {bigDecimalTransformer} from "./marshal"
+import { Big as BigDecimal } from 'big.js'
 
 @Entity_()
 export class Swap {
@@ -21,8 +21,8 @@ export class Swap {
   @Column_("timestamp with time zone", {nullable: false})
   timestamp!: Date
 
-  @Column_("text", {nullable: true})
-  pairId!: string | undefined | null
+  @Column_("text", {nullable: false})
+  pairId!: string
 
   @Index_()
   @ManyToOne_(() => Pair, {nullable: true})
@@ -34,17 +34,17 @@ export class Swap {
   @Column_("text", {nullable: true})
   from!: string | undefined | null
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  amount0In!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  amount0In!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  amount1In!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  amount1In!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  amount0Out!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  amount0Out!: BigDecimal
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  amount1Out!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  amount1Out!: BigDecimal
 
   @Index_()
   @Column_("text", {nullable: false})
@@ -53,6 +53,6 @@ export class Swap {
   @Column_("int4", {nullable: true})
   logIndex!: number | undefined | null
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  amountUSD!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  amountUSD!: BigDecimal
 }

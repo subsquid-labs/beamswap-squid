@@ -1,8 +1,8 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 import {User} from "./user.model"
 import {Pair} from "./pair.model"
-import bigDecimal from "js-big-decimal"
 import {bigDecimalTransformer} from "./marshal"
+import { Big as BigDecimal } from 'big.js'
 
 @Entity_()
 export class LiquidityPosition {
@@ -21,6 +21,6 @@ export class LiquidityPosition {
   @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair
 
-  @Column_("text", {transformer: bigDecimalTransformer, nullable: false})
-  liquidityTokenBalance!: bigDecimal
+  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  liquidityTokenBalance!: BigDecimal
 }

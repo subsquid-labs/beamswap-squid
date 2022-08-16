@@ -1,13 +1,14 @@
 import { User, Token, LiquidityPosition, Pair } from '../model'
-import bigDecimal from 'js-big-decimal'
+import { Big as BigDecimal } from 'big.js'
 import { BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import * as erc20 from '../types/abi/erc20'
 import * as erc20NameBytes from '../types/abi/erc20NameBytes'
 import * as erc20SymbolBytes from '../types/abi/erc20SymbolBytes'
+import { ZERO_BD } from '../consts'
 
-export function convertTokenToDecimal(amount: bigint, decimals: number): bigDecimal {
-    return new bigDecimal(bigDecimal.divide(amount.toString(), Math.pow(10, decimals).toString(), decimals))
+export function convertTokenToDecimal(amount: bigint, decimals: number): BigDecimal {
+    return BigDecimal(amount.toString()).div(Math.pow(10, decimals).toString())
 }
 
 async function fetchTokenSymbol(
@@ -59,17 +60,14 @@ export function createLiquidityPosition(data: LiquidityPositionData): LiquidityP
 
     return new LiquidityPosition({
         id: `${pair.id}-${user.id}`,
-        liquidityTokenBalance: new bigDecimal(0),
+        liquidityTokenBalance: ZERO_BD,
         pair,
         user,
     })
 }
 
 export function createUser(address: string): User {
-    return new User({
-        id: address,
-        usdSwapped: new bigDecimal(0),
-    })
+    return new User({ id: address })
 }
 
 // interface LiquiditySnapshotData {
@@ -131,12 +129,11 @@ export async function createToken(
         name,
         totalSupply: convertTokenToDecimal(totalSupply, decimals),
         decimals,
-        derivedETH: new bigDecimal(0),
-        tradeVolume: new bigDecimal(0),
-        tradeVolumeUSD: new bigDecimal(0),
-        untrackedVolumeUSD: new bigDecimal(0),
-        totalLiquidity: new bigDecimal(0),
-        // allPairs: [],
+        derivedETH: ZERO_BD,
+        tradeVolume: ZERO_BD,
+        tradeVolumeUSD: ZERO_BD,
+        untrackedVolumeUSD: ZERO_BD,
+        totalLiquidity: ZERO_BD,
         txCount: 0,
     })
 }

@@ -5,15 +5,11 @@ import { handleNewPair } from './mappings/factory'
 import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from './consts'
 import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
-// import { pairContracts } from './contract'
-import { getAddress } from '@ethersproject/address'
 import { saveAll } from './mappings/entityUtils'
 import { Pair, Swap, Swapper, SwapperType } from './model'
 import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
-import bigDecimal from 'js-big-decimal'
-
-const PAIR_CREATED_TOPIC = factory.events['PairCreated(address,address,address,uint256)'].topic
+import { Big as BigDecimal } from 'big.js'
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
@@ -25,20 +21,19 @@ const processor = new SubstrateBatchProcessor()
     })
     .setTypesBundle('moonbeam')
     .addEvmLog(FACTORY_ADDRESS, {
-        filter: [PAIR_CREATED_TOPIC],
+        filter: [factory.events['PairCreated(address,address,address,uint256)'].topic],
     })
-
-processor.addEvmLog('*', {
-    filter: [
-        [
-            pair.events['Transfer(address,address,uint256)'].topic,
-            pair.events['Sync(uint112,uint112)'].topic,
-            pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
-            pair.events['Mint(address,uint256,uint256)'].topic,
-            pair.events['Burn(address,uint256,uint256,address)'].topic,
+    .addEvmLog('*', {
+        filter: [
+            [
+                pair.events['Transfer(address,address,uint256)'].topic,
+                pair.events['Sync(uint112,uint112)'].topic,
+                pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
+                pair.events['Mint(address,uint256,uint256)'].topic,
+                pair.events['Burn(address,uint256,uint256,address)'].topic,
+            ],
         ],
-    ],
-})
+    })
 
 processor.run(database, async (ctx) => {
     for (const block of ctx.blocks) {
@@ -50,53 +45,44 @@ processor.run(database, async (ctx) => {
             }
         }
     }
-
     await saveAll(ctx.store)
 
     const lastBlock = ctx.blocks[ctx.blocks.length - 1].header
     await updateTop(ctx, lastBlock)
 })
 
-const knownContracts: string[] = []
+const knownPairContracts: Set<string> = new Set()
 
-async function isPairContract(store: Store, address: string): Promise<boolean> {
-    const normalizedAddress = getAddress(address)
-    if (knownContracts.includes(normalizedAddress)) {
+async function isKnownPairContracts(store: Store, address: string) {
+    const normalizedAddress = address.toLowerCase()
+    if (knownPairContracts.has(normalizedAddress)) {
         return true
     } else if ((await store.countBy(Pair, { id: normalizedAddress })) > 0) {
-        knownContracts.push(normalizedAddress)
+        knownPairContracts.add(normalizedAddress)
         return true
     }
-
     return false
 }
 
 async function handleEvmLog(ctx: BatchContext<Store, unknown>, block: SubstrateBlock, event: EvmLogEvent) {
     const contractAddress = event.args.address
-    if (contractAddress === FACTORY_ADDRESS && event.args.topics[0] === PAIR_CREATED_TOPIC) {
-        await handleNewPair(ctx, block, event)
-    } else if (await isPairContract(ctx.store, contractAddress)) {
+    if (contractAddress === FACTORY_ADDRESS) {
+        return await handleNewPair(ctx, block, event)
+    } else if (await isKnownPairContracts(ctx.store, contractAddress)) {
         switch (event.args.topics[0]) {
             case pair.events['Transfer(address,address,uint256)'].topic:
-                await handleTransfer(ctx, block, event)
-                break
+                return await handleTransfer(ctx, block, event)
             case pair.events['Sync(uint112,uint112)'].topic:
-                await handleSync(ctx, block, event)
-                break
+                return await handleSync(ctx, block, event)
             case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                await handleSwap(ctx, block, event)
-                break
+                return await handleSwap(ctx, block, event)
             case pair.events['Mint(address,uint256,uint256)'].topic:
-                await handleMint(ctx, block, event)
-                break
+                return await handleMint(ctx, block, event)
             case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                await handleBurn(ctx, block, event)
-                break
+                return await handleBurn(ctx, block, event)
         }
     }
 }
-
-
 
 const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
@@ -118,10 +104,10 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     const newSwapStat: Record<SwapPeriod, SwapStatPeriod> = {
         [SwapPeriod.DAY]: createSwapStat(SwapPeriod.DAY, end - DAY_MS, end),
         [SwapPeriod.WEEK]: createSwapStat(SwapPeriod.WEEK, Math.floor((end - WEEK_MS) / DAY_MS) * DAY_MS, end),
-        [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.MONTH, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end)
+        [SwapPeriod.MONTH]: createSwapStat(SwapPeriod.MONTH, Math.floor((end - MONTH_MS) / DAY_MS) * DAY_MS, end),
     }
 
-    const start = Math.min(...Object.values(newSwapStat).map(s => s.from.getTime()))
+    const start = Math.min(...Object.values(newSwapStat).map((s) => s.from.getTime()))
 
     const swaps = await ctx.store.find(Swap, {
         where: { timestamp: Between(new Date(start), new Date(end)) },
@@ -140,10 +126,10 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
             swappers.set(user.id, user)
         }
 
-        let pair = swappers.get(swap.pairId!)
+        let pair = swappers.get(swap.pairId)
         if (pair == null) {
             pair = new Swapper({
-                id: swap.pairId!,
+                id: swap.pairId,
                 dayAmountUSD: '0',
                 weekAmountUSD: '0',
                 monthAmountUSD: '0',
@@ -153,33 +139,33 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         }
 
         if (swap.timestamp.getTime() >= end - DAY_MS) {
-            user.dayAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.dayAmountUSD)
-            pair.dayAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.dayAmountUSD)
-            updateSwapStat(newSwapStat[SwapPeriod.DAY], swap.amountUSD)
+            user.dayAmountUSD = BigDecimal(swap.amountUSD).plus(user.dayAmountUSD).toFixed()
+            pair.dayAmountUSD = BigDecimal(swap.amountUSD).plus(pair.dayAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.DAY], swap.amountUSD.toFixed())
         }
 
         if (swap.timestamp.getTime() >= end - WEEK_MS) {
-            user.weekAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.weekAmountUSD)
-            pair.weekAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.weekAmountUSD)
-            updateSwapStat(newSwapStat[SwapPeriod.WEEK], swap.amountUSD)
+            user.weekAmountUSD = BigDecimal(swap.amountUSD).plus(user.weekAmountUSD).toFixed()
+            pair.weekAmountUSD = BigDecimal(swap.amountUSD).plus(pair.weekAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.WEEK], swap.amountUSD.toFixed())
         }
 
         if (swap.timestamp.getTime() >= end - MONTH_MS) {
-            user.monthAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), user.monthAmountUSD)
-            pair.monthAmountUSD = bigDecimal.add(swap.amountUSD.getValue(), pair.monthAmountUSD)
-            updateSwapStat(newSwapStat[SwapPeriod.MONTH], swap.amountUSD)
+            user.monthAmountUSD = BigDecimal(swap.amountUSD).plus(user.monthAmountUSD).toFixed()
+            pair.monthAmountUSD = BigDecimal(swap.amountUSD).plus(pair.monthAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.MONTH], swap.amountUSD.toFixed())
         }
     }
 
     for (const swapper of swappers.values()) {
         if (swapper.type === SwapperType.PAIR) {
-            if (bigDecimal.compareTo(swapper.dayAmountUSD, 0) > 0) newSwapStat[SwapPeriod.DAY].pairsCount += 1
-            if (bigDecimal.compareTo(swapper.weekAmountUSD, 0) > 0) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
-            if (bigDecimal.compareTo(swapper.monthAmountUSD, 0) > 0) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
+            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].pairsCount += 1
+            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
+            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
         } else {
-            if (bigDecimal.compareTo(swapper.dayAmountUSD, 0) > 0) newSwapStat[SwapPeriod.DAY].usersCount += 1
-            if (bigDecimal.compareTo(swapper.weekAmountUSD, 0) > 0) newSwapStat[SwapPeriod.WEEK].usersCount += 1
-            if (bigDecimal.compareTo(swapper.monthAmountUSD, 0) > 0) newSwapStat[SwapPeriod.MONTH].usersCount += 1
+            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].usersCount += 1
+            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].usersCount += 1
+            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].usersCount += 1
         }
     }
 
@@ -192,9 +178,9 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     ctx.log.info('Top updated.')
 }
 
-function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: bigDecimal) {
+function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: string) {
     swapStat.swapsCount += 1
-    swapStat.totalAmountUSD = bigDecimal.add(amountUSD.getValue(), swapStat.totalAmountUSD)
+    swapStat.totalAmountUSD = BigDecimal(amountUSD).plus(swapStat.totalAmountUSD).toFixed()
 }
 
 function createSwapStat(id: SwapPeriod, from: number, to: number) {
