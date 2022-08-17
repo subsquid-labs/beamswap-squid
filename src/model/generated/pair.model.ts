@@ -1,7 +1,7 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, OneToMany as OneToMany_} from "typeorm"
 import {Token} from "./token.model"
 import {LiquidityPosition} from "./liquidityPosition.model"
-import {Swap} from "./swap.model"
+import {TokenSwapEvent} from "./tokenSwapEvent.model"
 import {bigDecimalTransformer} from "./marshal"
 import { Big as BigDecimal } from 'big.js'
 
@@ -73,6 +73,6 @@ export class Pair {
   @OneToMany_(() => LiquidityPosition, e => e.pair)
   liquidityPositions!: LiquidityPosition[]
 
-  @OneToMany_(() => Swap, e => e.pair)
-  swaps!: Swap[]
+  @OneToMany_(() => TokenSwapEvent, e => e.pair)
+  swaps!: TokenSwapEvent[]
 }

@@ -109,18 +109,12 @@ type Pair @entity {
   # liquidityPositionSnapshots: [LiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
   # mints: [Mint!]! @derivedFrom(field: "pair")
   # burns: [Burn!]! @derivedFrom(field: "pair")
-  swaps: [Swap!]! @derivedFrom(field: "pair")
-}
-
-type User @entity {
-  id: ID!
-  liquidityPositions: [LiquidityPosition!] @derivedFrom(field: "user")
-  # usdSwapped: String!
+  swaps: [TokenSwapEvent!]! @derivedFrom(field: "pair")
 }
 
 type LiquidityPosition @entity {
   id: ID!
-  user: User!
+  user: String!
   pair: Pair!
   "BigDecimal"
   liquidityTokenBalance: String!
@@ -130,35 +124,23 @@ type Transaction @entity {
   id: ID! # txn hash
   blockNumber: Int!
   timestamp: DateTime!
-  # This is not the reverse of Mint.transaction; it is only used to
-  # track incomplete mints (similar for burns and swaps)
-  mints: [ID!]!
-  burns: [ID!]!
-  swaps: [ID!]!
 }
 
-type Swap @entity {
+type TokenSwapEvent @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
-  transaction: Transaction!
-  timestamp: DateTime! @index # need this to pull recent txns for specific token or pair
-  
-  pairId: ID!
-  pair: Pair!
 
-  # populated from the Swap event
-  sender: String!
-  from: String # the EOA that initiated the txn
-  "BigDecimal"
-  amount0In: String!
-  "BigDecimal"
-  amount1In: String!
-  "BigDecimal"
-  amount0Out: String!
-  "BigDecimal"
-  amount1Out: String!
-  to: String! @index
-  logIndex: Int
+  transaction: Transaction!
+  timestamp: DateTime!
+  
+  pair: Pair!
+  pairId: ID!
+
+  buyer: String!
+  tokenSold: Token!
+  soldAmount: BigInt!
+  tokenBought: Token!
+  boughtAmount: BigInt!
 
   "BigDecimal"
   amountUSD: String! # derived info

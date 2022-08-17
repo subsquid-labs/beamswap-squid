@@ -1,4 +1,4 @@
-import { User, Token, LiquidityPosition, Pair } from '../model'
+import { Token, LiquidityPosition, Pair } from '../model'
 import { Big as BigDecimal } from 'big.js'
 import { BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
@@ -52,22 +52,18 @@ async function fetchTokenDecimals(contract: erc20.Contract): Promise<number> {
 
 interface LiquidityPositionData {
     pair: Pair
-    user: User
+    user: string
 }
 
 export function createLiquidityPosition(data: LiquidityPositionData): LiquidityPosition {
     const { pair, user } = data
 
     return new LiquidityPosition({
-        id: `${pair.id}-${user.id}`,
+        id: `${pair.id}-${user}`,
         liquidityTokenBalance: ZERO_BD,
         pair,
         user,
     })
-}
-
-export function createUser(address: string): User {
-    return new User({ id: address })
 }
 
 // interface LiquiditySnapshotData {

@@ -1,6 +1,6 @@
 import { SubstrateBlock } from '@subsquid/substrate-processor'
 import { ADDRESS_ZERO, ZERO_BD } from '../consts'
-import { Transaction, Swap } from '../model'
+import { Transaction, TokenSwapEvent } from '../model'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import * as pairAbi from '../types/abi/pair'
 import { convertTokenToDecimal, createLiquidityPosition } from './helpers'
@@ -8,7 +8,6 @@ import assert from 'assert'
 import { BatchContext, EvmLogEvent } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import {
-    getUser,
     getPosition,
     getPair,
     addPosition,
@@ -38,8 +37,8 @@ export async function handleTransfer(
     const transactionHash = event.evmTxHash
 
     // user stats
-    const from = await getUser(ctx.store, data.from)
-    const to = await getUser(ctx.store, data.to)
+    const from = data.from
+    const to = data.to
 
     // get pair and load contract
     const pair = await getPair(ctx.store, contractAddress)
@@ -62,21 +61,21 @@ export async function handleTransfer(
     }
 
     // mints
-    if (from.id === ADDRESS_ZERO) {
+    if (from === ADDRESS_ZERO) {
         pair.totalSupply = pair.totalSupply.plus(value)
     }
 
     // burn
-    if (to.id == ADDRESS_ZERO && from.id == pair.id) {
+    if (to == ADDRESS_ZERO && from == pair.id) {
         pair.totalSupply = pair.totalSupply.minus(value)
     }
 
-    if (from.id !== ADDRESS_ZERO && from.id !== pair.id) {
-        await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: from.id })
+    if (from !== ADDRESS_ZERO && from !== pair.id) {
+        await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: from })
     }
 
-    if (to.id !== ADDRESS_ZERO && to.id !== pair.id) {
-        await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: to.id })
+    if (to !== ADDRESS_ZERO && to !== pair.id) {
+        await updateLiquidityPositionForAddress(ctx.store, { pairId: pair.id, userId: to })
     }
 }
 
@@ -87,11 +86,10 @@ async function updateLiquidityPositionForAddress(store: Store, data: { pairId: s
 
     if (!position) {
         const pair = await getPair(store, pairId)
-        const user = await getUser(store, userId)
 
         position = createLiquidityPosition({
             pair,
-            user,
+            user: userId,
         })
 
         addPosition(position)
@@ -268,6 +266,7 @@ export async function handleSwap(
     const amount1Out = convertTokenToDecimal(data.amount1Out.toBigInt(), Number(token1.decimals))
     const amount1Total = amount1Out.plus(amount1In)
 
+
     // get total amounts of derived USD and ETH for tracking
     const derivedAmountETH = token1.derivedETH.mul(amount1Total).plus(token0.derivedETH.mul(amount0Total)).div(2)
     const derivedAmountUSD = derivedAmountETH.mul(bundle.ethPrice)
@@ -308,23 +307,25 @@ export async function handleSwap(
         })
         addTransaction(transaction)
     }
-
+    
     const swapId = `${transaction.id}-${transaction.swaps.length}`
-
+    
     transaction.swaps.push(swapId)
 
-    const swap = new Swap({
+    if (amount0Total.eq(0) && amount1Total.eq(0)) return
+
+    const swap = new TokenSwapEvent({
         id: swapId,
         transaction,
         pair,
         timestamp: new Date(block.timestamp),
-        logIndex: event.pos,
-        sender: data.sender.toLowerCase(),
-        amount0In,
-        amount1In,
-        amount0Out,
-        amount1Out,
-        to: data.to.toLowerCase(),
+        tokenSold: amount0In.eq(0) ? token1 : token0,
+        soldAmount: data.amount0In.toBigInt() || data.amount1In.toBigInt(),
+        tokenBought: amount0Out.eq(0) ? token1 : token0,
+        boughtAmount: data.amount0Out.toBigInt() || data.amount1Out.toBigInt(),
+        buyer: data.to.toLowerCase(),
+        // sender: data.sender.toLowerCase(),
+        // to: data.to.toLowerCase(),
         // from:
         amountUSD: trackedAmountUSD.eq(ZERO_BD) ? derivedAmountUSD : trackedAmountUSD,
     })

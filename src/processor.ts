@@ -6,7 +6,7 @@ import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from 
 import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
 import { saveAll } from './mappings/entityUtils'
-import { Pair, Swap, Swapper, SwapperType } from './model'
+import { Pair, TokenSwapEvent, Swapper, SwapperType } from './model'
 import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
 import { Big as BigDecimal } from 'big.js'
@@ -109,15 +109,15 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
 
     const start = Math.min(...Object.values(newSwapStat).map((s) => s.from.getTime()))
 
-    const swaps = await ctx.store.find(Swap, {
+    const swaps = await ctx.store.find(TokenSwapEvent, {
         where: { timestamp: Between(new Date(start), new Date(end)) },
     })
 
-    for await (const swap of swaps) {
-        let user = swappers.get(swap.to)
+    for await (const TokenSwapEvent of swaps) {
+        let user = swappers.get(TokenSwapEvent.buyer)
         if (user == null) {
             user = new Swapper({
-                id: swap.to,
+                id: TokenSwapEvent.buyer,
                 dayAmountUSD: '0',
                 weekAmountUSD: '0',
                 monthAmountUSD: '0',
@@ -126,10 +126,10 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
             swappers.set(user.id, user)
         }
 
-        let pair = swappers.get(swap.pairId)
+        let pair = swappers.get(TokenSwapEvent.pairId)
         if (pair == null) {
             pair = new Swapper({
-                id: swap.pairId,
+                id: TokenSwapEvent.pairId,
                 dayAmountUSD: '0',
                 weekAmountUSD: '0',
                 monthAmountUSD: '0',
@@ -138,22 +138,22 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
             swappers.set(pair.id, pair)
         }
 
-        if (swap.timestamp.getTime() >= end - DAY_MS) {
-            user.dayAmountUSD = BigDecimal(swap.amountUSD).plus(user.dayAmountUSD).toFixed()
-            pair.dayAmountUSD = BigDecimal(swap.amountUSD).plus(pair.dayAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.DAY], swap.amountUSD.toFixed())
+        if (TokenSwapEvent.timestamp.getTime() >= end - DAY_MS) {
+            user.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.dayAmountUSD).toFixed()
+            pair.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.dayAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.DAY], TokenSwapEvent.amountUSD.toFixed())
         }
 
-        if (swap.timestamp.getTime() >= end - WEEK_MS) {
-            user.weekAmountUSD = BigDecimal(swap.amountUSD).plus(user.weekAmountUSD).toFixed()
-            pair.weekAmountUSD = BigDecimal(swap.amountUSD).plus(pair.weekAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.WEEK], swap.amountUSD.toFixed())
+        if (TokenSwapEvent.timestamp.getTime() >= end - WEEK_MS) {
+            user.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.weekAmountUSD).toFixed()
+            pair.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.weekAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.WEEK], TokenSwapEvent.amountUSD.toFixed())
         }
 
-        if (swap.timestamp.getTime() >= end - MONTH_MS) {
-            user.monthAmountUSD = BigDecimal(swap.amountUSD).plus(user.monthAmountUSD).toFixed()
-            pair.monthAmountUSD = BigDecimal(swap.amountUSD).plus(pair.monthAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.MONTH], swap.amountUSD.toFixed())
+        if (TokenSwapEvent.timestamp.getTime() >= end - MONTH_MS) {
+            user.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.monthAmountUSD).toFixed()
+            pair.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.monthAmountUSD).toFixed()
+            updateSwapStat(newSwapStat[SwapPeriod.MONTH], TokenSwapEvent.amountUSD.toFixed())
         }
     }
 

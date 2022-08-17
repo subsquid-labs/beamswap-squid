@@ -3,7 +3,7 @@ import { GraphQLResolveInfo } from 'graphql'
 import graphqlFields from 'graphql-fields'
 import 'reflect-metadata'
 import { EntityManager } from 'typeorm'
-import { Swap, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from '../../model'
+import { TokenSwapEvent, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from '../../model'
 import { DAY_MS } from '../../consts'
 import { In, Between } from 'typeorm'
 import assert from 'assert'
@@ -249,18 +249,20 @@ export class DayVolumeResolver {
         const manager = await this.tx()
 
         const users = new Map(ids.map((id) => [id, new SwapInfoObject({ id, volumesPerDay: [] })]))
-        const swaps = await manager.getRepository(Swap).find({
+        const swaps = await manager.getRepository(TokenSwapEvent).find({
             where: {
-                to: In(ids),
+                buyer: In(ids),
                 timestamp: Between(from, to),
             },
         })
 
-        for (const swap of swaps) {
-            const user = users.get(swap.to)
+        for (const TokenSwapEvent of swaps) {
+            const user = users.get(TokenSwapEvent.buyer)
             assert(user != null)
 
-            const timestamp = new Date(Math.max(Math.floor(swap.timestamp.getTime() / DAY_MS) * DAY_MS, from.getTime()))
+            const timestamp = new Date(
+                Math.max(Math.floor(TokenSwapEvent.timestamp.getTime() / DAY_MS) * DAY_MS, from.getTime())
+            )
 
             let amountUSDperDay = user.volumesPerDay.find((d) => d.day.getTime() === timestamp.getTime())
             if (amountUSDperDay == null) {
@@ -270,7 +272,7 @@ export class DayVolumeResolver {
                 })
                 user.volumesPerDay.push(amountUSDperDay)
             }
-            amountUSDperDay.amountUSD = BigDecimal(amountUSDperDay.amountUSD).add(swap.amountUSD).toFixed()
+            amountUSDperDay.amountUSD = BigDecimal(amountUSDperDay.amountUSD).add(TokenSwapEvent.amountUSD).toFixed()
         }
 
         return [...users.values()]

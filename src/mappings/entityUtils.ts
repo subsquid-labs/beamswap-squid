@@ -1,9 +1,7 @@
-import { getAddress } from '@ethersproject/address'
 import { Store } from '@subsquid/typeorm-store'
 import assert from 'assert'
 import { FACTORY_ADDRESS } from '../consts'
-import { UniswapFactory, Bundle, User, Pair, Token, LiquidityPosition, Transaction, Swap } from '../model'
-import { createUser } from './helpers'
+import { UniswapFactory, Bundle, Pair, Token, LiquidityPosition, Transaction, TokenSwapEvent } from '../model'
 
 let uniswap: UniswapFactory | undefined
 
@@ -25,22 +23,6 @@ export async function getBundle(store: Store) {
     }
 
     return bundle
-}
-
-const users: Map<string, User> = new Map()
-
-export async function getUser(store: Store, id: string) {
-    let user = users.get(id)
-
-    if (!user) {
-        user = await store.get(User, id)
-        if (!user) {
-            user = createUser(id)
-        }
-        users.set(user.id, user)
-    }
-
-    return user
 }
 
 const pairs: Map<string, Pair> = new Map()
@@ -91,9 +73,9 @@ export function addTransaction(item: Transaction) {
     transactions.set(item.id, item)
 }
 
-const swaps: Map<string, Swap> = new Map()
+const swaps: Map<string, TokenSwapEvent> = new Map()
 
-export function addSwap(item: Swap) {
+export function addSwap(item: TokenSwapEvent) {
     swaps.set(item.id, item)
 }
 
@@ -128,9 +110,6 @@ export async function saveAll(store: Store) {
 
     await store.save([...swaps.values()])
     swaps.clear()
-
-    await store.save([...users.values()])
-    users.clear()
 
     await store.save([...positions.values()])
     positions.clear()
