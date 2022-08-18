@@ -4,6 +4,7 @@ import {Transaction} from "./transaction.model"
 import {Pair} from "./pair.model"
 import { Big as BigDecimal } from 'big.js'
 import {Token} from "./token.model"
+import {Pool} from "./pool.model"
 
 @Entity_()
 export class TokenSwapEvent {
@@ -18,15 +19,22 @@ export class TokenSwapEvent {
   @ManyToOne_(() => Transaction, {nullable: true})
   transaction!: Transaction
 
-  @Column_("timestamp with time zone", {nullable: false})
+  @Column_("timestamp with time zone", {nullable: true})
   timestamp!: Date
 
   @Index_()
   @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair
 
-  @Column_("text", {nullable: false})
+  @Column_("text", {nullable: true})
   pairId!: string
+
+  @Index_()
+  @ManyToOne_(() => Pool, {nullable: true})
+  pool!: Pool
+
+  @Column_("text", {nullable: true})
+  poolId!: string
 
   @Column_("text", {nullable: false})
   buyer!: string

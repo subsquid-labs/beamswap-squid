@@ -130,11 +130,14 @@ type TokenSwapEvent @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
 
-  transaction: Transaction!
+  transaction: Transaction
   timestamp: DateTime!
   
-  pair: Pair!
-  pairId: ID!
+  pair: Pair
+  pairId: ID
+
+  pool: Pool
+  poolId: ID
 
   buyer: String!
   tokenSold: Token!
@@ -151,4 +154,33 @@ type Bundle @entity {
   id: ID!
   "BigDecimal"
   ethPrice: String! # price of ETH usd
+}
+
+type Pool @entity {
+  id: ID!
+
+  # number of tokens supported
+  numTokens: Int!
+
+  # supported tokens
+  tokens: [String!]!
+
+  # token balances
+  balances: [BigInt!]!
+
+  # liquidity provider token
+  lpToken: String!
+
+  # amplification coefficient
+  a: BigInt!
+
+  swapFee: BigInt!
+  adminFee: BigInt!
+
+  virtualPrice: BigInt!
+
+  # owner address
+  owner: String!
+
+  swaps: [TokenSwapEvent!] @derivedFrom(field: "pool")
 }

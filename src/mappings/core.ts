@@ -323,7 +323,7 @@ export async function handleSwap(
         soldAmount: data.amount0In.toBigInt() || data.amount1In.toBigInt(),
         tokenBought: amount0Out.eq(0) ? token1 : token0,
         boughtAmount: data.amount0Out.toBigInt() || data.amount1Out.toBigInt(),
-        buyer: data.to.toLowerCase(),
+        buyer: data.sender.toLowerCase(),
         // sender: data.sender.toLowerCase(),
         // to: data.to.toLowerCase(),
         // from:

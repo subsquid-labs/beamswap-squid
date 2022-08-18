@@ -1,20 +1,31 @@
-import { BatchContext, EvmLogEvent, SubstrateBatchProcessor, SubstrateBlock } from '@subsquid/substrate-processor'
+import {BatchContext, EvmLogEvent, SubstrateBatchProcessor, SubstrateBlock} from '@subsquid/substrate-processor'
 import * as factory from './types/abi/factory'
 import * as pair from './types/abi/pair'
-import { handleNewPair } from './mappings/factory'
-import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from './consts'
-import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/core'
-import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
-import { saveAll } from './mappings/entityUtils'
-import { Pair, TokenSwapEvent, Swapper, SwapperType } from './model'
-import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
-import { Between, Not, In } from 'typeorm'
-import { Big as BigDecimal } from 'big.js'
+import * as swapFlashLoan from './types/abi/swapFlashLoan'
+import {handleNewPair} from './mappings/factory'
+import {CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS} from './consts'
+import {handleBurn, handleMint, handleSwap, handleSync, handleTransfer} from './mappings/core'
+import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
+import {saveAll} from './mappings/entityUtils'
+import {Pair, TokenSwapEvent, Swapper, SwapperType} from './model'
+import {SwapStatPeriod, SwapPeriod} from './model/custom/swapStat'
+import {Between, Not, In} from 'typeorm'
+import {Big as BigDecimal} from 'big.js'
+import {
+    handleAddLiquidity,
+    handleNewAdminFee,
+    handleNewSwapFee,
+    handleRemoveLiquidity,
+    handleRemoveLiquidityImbalance,
+    handleRemoveLiquidityOne,
+    handleStopRampA,
+    handleTokenSwap,
+} from './mappings/swapFlashLoan'
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
     .setBatchSize(100)
-    .setBlockRange({ from: 199900 })
+    .setBlockRange({from: 199900})
     .setDataSource({
         chain: CHAIN_NODE,
         archive: 'https://moonbeam.archive.subsquid.io/graphql',
@@ -33,6 +44,38 @@ const processor = new SubstrateBatchProcessor()
                 pair.events['Burn(address,uint256,uint256,address)'].topic,
             ],
         ],
+    })
+    .addEvmLog('0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f', {
+        filter: [
+            [
+                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
+                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
+                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
+                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
+                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
+                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
+            ],
+        ],
+        range: {from: 1329660},
+    })
+    .addEvmLog('0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921', {
+        filter: [
+            [
+                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
+                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
+                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
+                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
+                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
+                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
+                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
+            ],
+        ],
+        range: {from: 1298636},
     })
 
 processor.run(database, async (ctx) => {
@@ -57,7 +100,7 @@ async function isKnownPairContracts(store: Store, address: string) {
     const normalizedAddress = address.toLowerCase()
     if (knownPairContracts.has(normalizedAddress)) {
         return true
-    } else if ((await store.countBy(Pair, { id: normalizedAddress })) > 0) {
+    } else if ((await store.countBy(Pair, {id: normalizedAddress})) > 0) {
         knownPairContracts.add(normalizedAddress)
         return true
     }
@@ -66,21 +109,88 @@ async function isKnownPairContracts(store: Store, address: string) {
 
 async function handleEvmLog(ctx: BatchContext<Store, unknown>, block: SubstrateBlock, event: EvmLogEvent) {
     const contractAddress = event.args.address
-    if (contractAddress === FACTORY_ADDRESS) {
-        return await handleNewPair(ctx, block, event)
-    } else if (await isKnownPairContracts(ctx.store, contractAddress)) {
-        switch (event.args.topics[0]) {
-            case pair.events['Transfer(address,address,uint256)'].topic:
-                return await handleTransfer(ctx, block, event)
-            case pair.events['Sync(uint112,uint112)'].topic:
-                return await handleSync(ctx, block, event)
-            case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                return await handleSwap(ctx, block, event)
-            case pair.events['Mint(address,uint256,uint256)'].topic:
-                return await handleMint(ctx, block, event)
-            case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                return await handleBurn(ctx, block, event)
+    switch (contractAddress) {
+        case FACTORY_ADDRESS:
+            await handleNewPair(ctx, block, event)
+            break
+        case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
+        case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
+            switch (event.args.topics[0]) {
+                case swapFlashLoan.events['NewAdminFee(uint256)'].topic:
+                    await handleNewAdminFee({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['NewSwapFee(uint256)'].topic:
+                    await handleNewSwapFee({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['StopRampA(uint256,uint256)'].topic:
+                    await handleStopRampA({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic:
+                    await handleAddLiquidity({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic:
+                    await handleRemoveLiquidity({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)']
+                    .topic:
+                    await handleRemoveLiquidityImbalance({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic:
+                    await handleRemoveLiquidityOne({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+                case swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic:
+                    await handleTokenSwap({
+                        ...ctx,
+                        block,
+                        event,
+                    })
+                    break
+            }
+            break
         }
+        default:
+            if (await isKnownPairContracts(ctx.store, contractAddress)) {
+                switch (event.args.topics[0]) {
+                    case pair.events['Transfer(address,address,uint256)'].topic:
+                        return await handleTransfer(ctx, block, event)
+                    case pair.events['Sync(uint112,uint112)'].topic:
+                        return await handleSync(ctx, block, event)
+                    case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
+                        return await handleSwap(ctx, block, event)
+                    case pair.events['Mint(address,uint256,uint256)'].topic:
+                        return await handleMint(ctx, block, event)
+                    case pair.events['Burn(address,uint256,uint256,address)'].topic:
+                        return await handleBurn(ctx, block, event)
+                }
+            }
     }
 }
 
@@ -88,7 +198,7 @@ const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
 
 async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBlock) {
-    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
+    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, {id: SwapPeriod.DAY})
 
     if (lastUpdateTopTimestamp == null) {
         lastUpdateTopTimestamp = swapStat?.to.getTime() || -topUpdateInterval
@@ -110,7 +220,7 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     const start = Math.min(...Object.values(newSwapStat).map((s) => s.from.getTime()))
 
     const swaps = await ctx.store.find(TokenSwapEvent, {
-        where: { timestamp: Between(new Date(start), new Date(end)) },
+        where: {timestamp: Between(new Date(start), new Date(end))},
     })
 
     for await (const TokenSwapEvent of swaps) {
@@ -129,7 +239,7 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         let pair = swappers.get(TokenSwapEvent.pairId)
         if (pair == null) {
             pair = new Swapper({
-                id: TokenSwapEvent.pairId,
+                id: String(TokenSwapEvent.pairId),
                 dayAmountUSD: '0',
                 weekAmountUSD: '0',
                 monthAmountUSD: '0',
@@ -170,7 +280,7 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     }
 
     await ctx.store.save(Object.values(newSwapStat))
-    await ctx.store.remove(await ctx.store.findBy(Swapper, { id: Not(In([...swappers.keys()])) }))
+    await ctx.store.remove(await ctx.store.findBy(Swapper, {id: Not(In([...swappers.keys()]))}))
     await ctx.store.save([...swappers.values()])
 
     lastUpdateTopTimestamp = block.timestamp
