@@ -4,22 +4,22 @@ import assert from 'assert'
 import { FACTORY_ADDRESS } from '../consts'
 import { UniswapFactory, Bundle, LiquidityPosition, Transaction } from '../model'
 
-// let uniswap: UniswapFactory | undefined
+let _uniswap: UniswapFactory | undefined
 
 export async function getUniswap(ctx: CommonHandlerContext<Store>) {
-    const uniswap = await ctx.store.get(UniswapFactory, FACTORY_ADDRESS)
-    assert(uniswap != null)
+    _uniswap = _uniswap || (await ctx.store.get(UniswapFactory, FACTORY_ADDRESS))
+    assert(_uniswap != null)
 
-    return uniswap
+    return _uniswap
 }
 
-// let bundle: Bundle | undefined
+let _bundle: Bundle | undefined
 
 export async function getBundle(ctx: CommonHandlerContext<Store>) {
-    const bundle = await ctx.store.get(Bundle, '1')
-    assert(bundle != null)
+    _bundle = _bundle || (await ctx.store.get(Bundle, '1'))
+    assert(_bundle != null)
 
-    return bundle
+    return _bundle
 }
 
 // const pairs: Map<string, Pair> = new Map()

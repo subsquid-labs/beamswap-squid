@@ -111,8 +111,8 @@ export async function handleSync(ctx: EvmLogHandlerContext<Store>): Promise<void
 
     const pair = await getPair(ctx, contractAddress)
 
-    const token0 = await getOrCreateToken(ctx, pair.token0.id)
-    const token1 = await getOrCreateToken(ctx, pair.token1.id)
+    const token0 = pair.token0
+    const token1 = pair.token1
 
     // reset factory liquidity by subtracting onluy tarcked liquidity
     uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH)
@@ -142,7 +142,7 @@ export async function handleSync(ctx: EvmLogHandlerContext<Store>): Promise<void
 
         // both are whitelist tokens, take average of both amounts
         if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-            trackedLiquidityETH = pair.reserve0.times(price0).plus((pair.reserve1.times(price1)))
+            trackedLiquidityETH = pair.reserve0.times(price0).plus(pair.reserve1.times(price1))
         }
 
         // take double value of the whitelisted token amount
@@ -186,10 +186,10 @@ export async function handleMint(ctx: EvmLogHandlerContext<Store>): Promise<void
 
     const pair = await getPair(ctx, contractAddress)
 
-    const token0 = await getOrCreateToken(ctx, pair.token0.id)
+    const token0 = pair.token0
     token0.txCount += 1
 
-    const token1 = await getOrCreateToken(ctx, pair.token1.id)
+    const token1 = pair.token1
     token1.txCount += 1
 
     // update txn counts
@@ -233,10 +233,10 @@ export async function handleBurn(ctx: EvmLogHandlerContext<Store>): Promise<void
     uniswap.txCount += 1
 
     // update txn counts
-    const token0 = await getOrCreateToken(ctx, pair.token0.id)
+    const token0 = pair.token0
     token0.txCount += 1
 
-    const token1 = await getOrCreateToken(ctx, pair.token1.id)
+    const token1 = pair.token1
     token1.txCount += 1
 
     await updateLiquidityPositionForAddress(ctx, pair, data.sender)
@@ -258,12 +258,12 @@ export async function handleSwap(ctx: EvmLogHandlerContext<Store>): Promise<void
 
     const pair = await getPair(ctx, contractAddress)
 
-    const token0 = await getOrCreateToken(ctx, pair.token0.id)
+    const token0 = pair.token0
     const amount0In = convertTokenToDecimal(data.amount0In.toBigInt(), Number(token0.decimals))
     const amount0Out = convertTokenToDecimal(data.amount0Out.toBigInt(), Number(token0.decimals))
     const amount0Total = amount0Out.plus(amount0In)
 
-    const token1 = await getOrCreateToken(ctx, pair.token1.id)
+    const token1 = pair.token1
     const amount1In = convertTokenToDecimal(data.amount1In.toBigInt(), Number(token1.decimals))
     const amount1Out = convertTokenToDecimal(data.amount1Out.toBigInt(), Number(token1.decimals))
     const amount1Total = amount1Out.plus(amount1In)
