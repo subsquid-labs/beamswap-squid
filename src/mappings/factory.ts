@@ -1,19 +1,14 @@
-import { EvmLogEvent, SubstrateBlock } from '@subsquid/substrate-processor'
-import { Bundle, Pair, Token, UniswapFactory } from '../model'
+import { EvmLogHandlerContext } from '@subsquid/substrate-processor'
+import { Bundle, Pair, UniswapFactory } from '../model'
 import * as factoryAbi from '../types/abi/factory'
-import { createToken } from './helpers'
-import { BatchContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import { ZERO_BD } from '../consts'
+import { getOrCreateToken } from '../entities/token'
 
-export async function handleNewPair(
-    ctx: BatchContext<Store, unknown>,
-    block: SubstrateBlock,
-    event: EvmLogEvent
-): Promise<void> {
-    const contractAddress = event.args.address
+export async function handleNewPair(ctx: EvmLogHandlerContext<Store>): Promise<void> {
+    const contractAddress = ctx.event.args.address
 
-    const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(event.args)
+    const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(ctx.event.args)
 
     // load factory (create if first exchange)
     let factory = await ctx.store.get(UniswapFactory, contractAddress)
@@ -40,16 +35,16 @@ export async function handleNewPair(
     await ctx.store.save(factory)
 
     // create the tokens
-    const token0 = await getToken(ctx, block, data.token0.toLowerCase())
-    const token1 = await getToken(ctx, block, data.token1.toLowerCase())
+    const token0 = await getOrCreateToken(ctx, data.token0.toLowerCase())
+    const token1 = await getOrCreateToken(ctx, data.token1.toLowerCase())
 
     const pair = new Pair({
         id: data.pair.toLowerCase(),
         token0,
         token1,
         liquidityProviderCount: 0,
-        createdAtTimestamp: new Date(block.timestamp),
-        createdAtBlockNumber: block.height,
+        createdAtTimestamp: new Date(ctx.block.timestamp),
+        createdAtBlockNumber: ctx.block.height,
         txCount: 0,
         reserve0: ZERO_BD,
         reserve1: ZERO_BD,
@@ -66,14 +61,4 @@ export async function handleNewPair(
     })
 
     await ctx.store.save(pair)
-}
-
-async function getToken(ctx: BatchContext<Store, unknown>, block: SubstrateBlock, address: string): Promise<Token> {
-    let token = await ctx.store.get(Token, address)
-    if (!token) {
-        token = await createToken(ctx, block, address)
-        await ctx.store.save(token)
-    }
-
-    return token
 }

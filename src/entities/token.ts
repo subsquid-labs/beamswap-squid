@@ -1,4 +1,4 @@
-import {EvmLogHandlerContext} from '@subsquid/substrate-processor'
+import {CommonHandlerContext} from '@subsquid/substrate-processor'
 import {Store} from '@subsquid/typeorm-store'
 import {ZERO_BD} from '../consts'
 import {convertTokenToDecimal} from '../mappings/helpers'
@@ -7,7 +7,7 @@ import {Token} from '../model'
 
 import * as ERC20 from '../types/abi/erc20'
 
-export async function getOrCreateToken(ctx: EvmLogHandlerContext<Store>, address: string): Promise<Token> {
+export async function getOrCreateToken(ctx: CommonHandlerContext<Store>, address: string): Promise<Token> {
     let token = await ctx.store.get(Token, address)
 
     if (token == null) {
