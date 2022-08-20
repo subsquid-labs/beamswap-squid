@@ -1,7 +1,7 @@
 import {CommonHandlerContext} from '@subsquid/substrate-processor'
 import {Store} from '@subsquid/typeorm-store'
 import {ZERO_BD} from '../consts'
-import {convertTokenToDecimal} from '../mappings/helpers'
+import {convertTokenToDecimal} from '../utils/helpers'
 
 import {Token} from '../model'
 

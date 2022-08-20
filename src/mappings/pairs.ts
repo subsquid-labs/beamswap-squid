@@ -1,9 +1,9 @@
 import { CommonHandlerContext, EvmLogHandlerContext } from '@subsquid/substrate-processor'
 import { ADDRESS_ZERO, ZERO_BD } from '../consts'
 import { Transaction, TokenSwapEvent, Pair } from '../model'
-import { getEthPriceInUSD, findEthPerToken, WHITELIST, MINIMUM_USD_THRESHOLD_NEW_PAIRS } from './pricing'
+import { getEthPriceInUSD, findEthPerToken, WHITELIST, MINIMUM_USD_THRESHOLD_NEW_PAIRS } from '../utils/pricing'
 import * as pairAbi from '../types/abi/pair'
-import { convertTokenToDecimal, createLiquidityPosition } from './helpers'
+import { convertTokenToDecimal, createLiquidityPosition } from '../utils/helpers'
 import { Store } from '@subsquid/typeorm-store'
 import { getBundle, getPosition, getTransaction, getUniswap } from '../entities/entityUtils'
 import { getOrCreateToken } from '../entities/token'
@@ -155,7 +155,7 @@ export async function handleSync(ctx: EvmLogHandlerContext<Store>): Promise<void
             trackedLiquidityETH = pair.reserve1.times(price1).times(2)
         }
 
-        trackedLiquidityETH = bundle.ethPrice.eq(ZERO_BD) ? ZERO_BD : trackedLiquidityETH.div(bundle.ethPrice)
+        trackedLiquidityETH = trackedLiquidityETH.div(bundle.ethPrice)
     }
 
     // use derived amounts within pair

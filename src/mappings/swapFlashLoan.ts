@@ -4,7 +4,7 @@ import { TokenSwapEvent } from '../model'
 import { EvmLogHandlerContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import * as SwapFlash from '../types/abi/swapFlashLoan'
-import { convertTokenToDecimal } from './helpers'
+import { convertTokenToDecimal } from '../utils/helpers'
 
 export async function handleNewAdminFee(ctx: EvmLogHandlerContext<Store>): Promise<void> {
     const pool = await getOrCreatePool(ctx, ctx.event.args.address)
