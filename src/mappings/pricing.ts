@@ -3,7 +3,8 @@ import { Store } from '@subsquid/typeorm-store'
 import { Big as BigDecimal } from 'big.js'
 import { getOrCreateToken } from '../entities/token'
 import { CommonHandlerContext } from '@subsquid/substrate-processor'
-import { getPair, getPairByTokens } from '../entities/pair'
+import { getPair } from '../entities/pair'
+import { Pair } from '../model'
 
 export const WGLMR_ADDRESS = '0xAcc15dC74880C9944775448304B263D191c6077F'.toLowerCase() //Replace with wrapped glint
 export const WGLMR_USDC_ADDRESS = '0xb929914B89584b4081C7966AC6287636F7EfD053'.toLowerCase() //replace with wglint usdc LP address
@@ -12,7 +13,7 @@ export const USDC = '0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b'.toLowerCase() /
 export const WHITELIST: string[] = [
     '0xcd3B51D98478D53F4515A306bE565c6EebeF1D58'.toLowerCase(), //GLINT
     '0xAcc15dC74880C9944775448304B263D191c6077F'.toLowerCase(), //WGLINT
-    ''.toLowerCase(), //USDC
+    '0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b'.toLowerCase(), //USDC
 ]
 
 export async function getEthPriceInUSD(ctx: CommonHandlerContext<Store>): Promise<BigDecimal> {
@@ -36,12 +37,20 @@ export async function findEthPerToken(ctx: CommonHandlerContext<Store>, tokenId:
     if (tokenId === WGLMR_ADDRESS) {
         return ONE_BD
     }
+
+    const whitelistPairs = await ctx.store.find(Pair, {
+        where: WHITELIST.map((t) => [
+            { token0: { id: t }, token1: { id: tokenId } },
+            { token1: { id: t }, token0: { id: tokenId } },
+        ]).flat(),
+        relations: {
+            token0: true,
+            token1: true,
+        },
+    })
+
     // loop through whitelist and check if paired with any
-    for (let i = 0; i < WHITELIST.length; ++i) {
-        const pair = await getPairByTokens(ctx, tokenId, WHITELIST[i])
-
-        if (!pair) continue
-
+    for (const pair of whitelistPairs) {
         if (pair.reserveETH.lte(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) continue
 
         if (pair.token0.id === tokenId) {
