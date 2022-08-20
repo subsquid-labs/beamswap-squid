@@ -18,7 +18,7 @@ export const WHITELIST: string[] = [
 export async function getEthPriceInUSD(ctx: CommonHandlerContext<Store>): Promise<BigDecimal> {
     const usdcPair = await getPair(ctx, WGLMR_USDC_ADDRESS)
 
-    console.log(`usdcPair ${usdcPair.token0Price}, ${usdcPair.token1Price}`)
+    // console.log(`usdcPair ${usdcPair.token0Price}, ${usdcPair.token1Price}`)
     return usdcPair.token0.id === USDC ? usdcPair.token0Price : usdcPair.token1Price
 }
 
