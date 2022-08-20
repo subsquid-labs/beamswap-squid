@@ -12,36 +12,3 @@ export async function getPair(ctx: CommonHandlerContext<Store>, id: string) {
 
     return item
 }
-
-const pairsAdressesCache: Map<string, string> = new Map()
-
-export async function getPairByTokens(ctx: CommonHandlerContext<Store>, token0: string, token1: string) {
-    // let address = pairsAdressesCache.get(`${token0}-${token1}`)
-    // if (address)
-    //     return await ctx.store.get(Pair, {
-    //         address,
-    //         relations: {
-    //             token0: true,
-    //             token1: true,
-    //         },
-    //     })
-
-    // address = pairsAdressesCache.get(`${token1}-${token0}`)
-    // if (address) return await ctx.store.get(Pair, address)
-
-    const pair = await ctx.store.get(Pair, {
-        where: [
-            { token0: { id: token0 }, token1: { id: token1 } },
-            { token0: { id: token1 }, token1: { id: token0 } },
-        ],
-        relations: {
-            token0: true,
-            token1: true,
-        },
-    })
-    // if (pair) {
-    //     pairsAdressesCache.set(`${token0}-${token1}`, pair.id)
-    // }
-
-    return pair
-}

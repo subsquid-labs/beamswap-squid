@@ -142,7 +142,7 @@ export async function handleSync(ctx: EvmLogHandlerContext<Store>): Promise<void
 
         // both are whitelist tokens, take average of both amounts
         if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-            trackedLiquidityETH = pair.reserve0.times(price0).plus(pair.reserve1).times(price1)
+            trackedLiquidityETH = pair.reserve0.times(price0).plus((pair.reserve1.times(price1)))
         }
 
         // take double value of the whitelisted token amount
@@ -154,8 +154,9 @@ export async function handleSync(ctx: EvmLogHandlerContext<Store>): Promise<void
         if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
             trackedLiquidityETH = pair.reserve1.times(price1).times(2)
         }
+
+        trackedLiquidityETH = bundle.ethPrice.eq(ZERO_BD) ? ZERO_BD : trackedLiquidityETH.div(bundle.ethPrice)
     }
-    trackedLiquidityETH = bundle.ethPrice.eq(ZERO_BD) ? ZERO_BD : trackedLiquidityETH.div(bundle.ethPrice)
 
     // use derived amounts within pair
     pair.trackedReserveETH = trackedLiquidityETH
