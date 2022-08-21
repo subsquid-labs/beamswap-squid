@@ -124,6 +124,8 @@ type Transaction @entity {
   id: ID! # txn hash
   blockNumber: Int!
   timestamp: DateTime!
+
+  swaps: [ID!]
 }
 
 type TokenSwapEvent @entity {
