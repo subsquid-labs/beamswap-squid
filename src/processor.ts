@@ -99,7 +99,9 @@ processor.run(database, async (ctx) => {
     await ctx.store.save([...entities.get(Transaction).values()])
     await ctx.store.save([...entities.get(TokenSwapEvent).values()])
 
-    ctx.log.info(`saved ${entities.get(TokenSwapEvent).size} swaps`)
+    for (const [entityClass, entity] of entities) {
+        ctx.log.info(`saved ${entity.size} ${entityClass.name}`)
+    }
 
     const lastBlock = ctx.blocks[ctx.blocks.length - 1].header
     await updateTop(ctx, lastBlock)

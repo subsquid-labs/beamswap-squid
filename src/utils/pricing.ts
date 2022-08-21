@@ -42,16 +42,7 @@ export async function findEthPerToken(
     entities: EntityMap,
     tokenId: string
 ): Promise<BigDecimal> {
-    if (tokenId === WGLMR_ADDRESS) {
-        return ONE_BD
-    }
-
-    // const whitelistPairs = [...entities.get(Pair).values()].filter((p) => {
-    //     return (
-    //         (WHITELIST.includes(p.token0Id) && p.token1Id === tokenId) ||
-    //         (WHITELIST.includes(p.token1Id) && p.token0Id === tokenId)
-    //     )
-    // })
+    if (tokenId === WGLMR_ADDRESS) return ONE_BD
 
     // loop through whitelist and check if paired with any
     for (let i = 0; i < WHITELIST.length; i++) {
