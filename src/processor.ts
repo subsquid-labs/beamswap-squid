@@ -138,6 +138,8 @@ processor.run(database, async (ctx) => {
     await ctx.store.save([...entities.get(Transaction).values()])
     await ctx.store.save([...entities.get(TokenSwapEvent).values()])
 
+    ctx.log.info(`saved ${entities.get(TokenSwapEvent).size} swaps`)
+
     const lastBlock = ctx.blocks[ctx.blocks.length - 1].header
     await updateTop(ctx, lastBlock)
 })
@@ -226,9 +228,8 @@ const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
 
 async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBlock) {
-    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
-
     if (lastUpdateTopTimestamp == null) {
+        const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
         lastUpdateTopTimestamp = swapStat?.to.getTime() || -topUpdateInterval
     }
 
