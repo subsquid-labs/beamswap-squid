@@ -38,11 +38,11 @@ const processor = new SubstrateBatchProcessor()
     .addEvmLog('*', {
         filter: [
             [
-                pair.events['Transfer(address,address,uint256)'].topic,
+                // pair.events['Transfer(address,address,uint256)'].topic,
                 pair.events['Sync(uint112,uint112)'].topic,
                 pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
-                pair.events['Mint(address,uint256,uint256)'].topic,
-                pair.events['Burn(address,uint256,uint256,address)'].topic,
+                // pair.events['Mint(address,uint256,uint256)'].topic,
+                // pair.events['Burn(address,uint256,uint256,address)'].topic,
             ],
         ],
     })
