@@ -1,10 +1,10 @@
-import { getBalancesSwap, getOrCreatePool } from '../entities/swap'
-import { getOrCreateToken } from '../entities/token'
-import { TokenSwapEvent } from '../model'
+import { getBalancesSwap, getOrCreatePool } from './src/entities/swap'
+import { getOrCreateToken } from './src/entities/token'
+import { TokenSwapEvent } from './src/model'
 import { EvmLogHandlerContext } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
-import * as SwapFlash from '../types/abi/swapFlashLoan'
-import { convertTokenToDecimal } from '../utils/helpers'
+import * as SwapFlash from './src/types/abi/swapFlashLoan'
+import { convertTokenToDecimal } from './src/utils/helpers'
 
 export async function handleNewAdminFee(ctx: EvmLogHandlerContext<Store>): Promise<void> {
     const pool = await getOrCreatePool(ctx, ctx.event.args.address)

@@ -1,5 +1,5 @@
-module.exports = class Data1660826742594 {
-  name = 'Data1660826742594'
+module.exports = class Data1661098998878 {
+  name = 'Data1661098998878'
 
   async up(db) {
     await db.query(`CREATE TABLE "uniswap_factory" ("id" character varying NOT NULL, "pair_count" integer NOT NULL, "total_volume_usd" numeric(38,20) NOT NULL, "total_volume_eth" numeric(38,20) NOT NULL, "untracked_volume_usd" numeric(38,20) NOT NULL, "total_liquidity_usd" numeric(38,20) NOT NULL, "total_liquidity_eth" numeric(38,20) NOT NULL, "tx_count" integer NOT NULL, CONSTRAINT "PK_89dd10e302aec5fac5bbf1d35f0" PRIMARY KEY ("id"))`)
@@ -15,7 +15,7 @@ module.exports = class Data1660826742594 {
     await db.query(`CREATE INDEX "IDX_5d68341e6a05564d283c5aa7e1" ON "token_swap_event" ("pool_id") `)
     await db.query(`CREATE INDEX "IDX_04fb3b7ccbc5a88b68d04ca48d" ON "token_swap_event" ("token_sold_id") `)
     await db.query(`CREATE INDEX "IDX_ec6a1e67ff2c6ae31899909de5" ON "token_swap_event" ("token_bought_id") `)
-    await db.query(`CREATE TABLE "pair" ("id" character varying NOT NULL, "reserve0" numeric(38,20) NOT NULL, "reserve1" numeric(38,20) NOT NULL, "total_supply" numeric(38,20) NOT NULL, "reserve_eth" numeric(38,20) NOT NULL, "reserve_usd" numeric(38,20) NOT NULL, "tracked_reserve_eth" numeric(38,20) NOT NULL, "token0_price" numeric(38,20) NOT NULL, "token1_price" numeric(38,20) NOT NULL, "volume_token0" numeric(38,20) NOT NULL, "volume_token1" numeric(38,20) NOT NULL, "volume_usd" numeric(38,20) NOT NULL, "untracked_volume_usd" numeric(38,20) NOT NULL, "tx_count" integer NOT NULL, "created_at_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at_block_number" integer NOT NULL, "liquidity_provider_count" integer NOT NULL, "token0_id" character varying, "token1_id" character varying, CONSTRAINT "PK_3eaf216329c5c50aedb94fa797e" PRIMARY KEY ("id"))`)
+    await db.query(`CREATE TABLE "pair" ("id" character varying NOT NULL, "token0_id" character varying NOT NULL, "token1_id" character varying NOT NULL, "reserve0" numeric(38,20) NOT NULL, "reserve1" numeric(38,20) NOT NULL, "total_supply" numeric(38,20) NOT NULL, "reserve_eth" numeric(38,20) NOT NULL, "reserve_usd" numeric(38,20) NOT NULL, "tracked_reserve_eth" numeric(38,20) NOT NULL, "token0_price" numeric(38,20) NOT NULL, "token1_price" numeric(38,20) NOT NULL, "volume_token0" numeric(38,20) NOT NULL, "volume_token1" numeric(38,20) NOT NULL, "volume_usd" numeric(38,20) NOT NULL, "untracked_volume_usd" numeric(38,20) NOT NULL, "tx_count" integer NOT NULL, "created_at_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at_block_number" integer NOT NULL, "liquidity_provider_count" integer NOT NULL, CONSTRAINT "PK_3eaf216329c5c50aedb94fa797e" PRIMARY KEY ("id"))`)
     await db.query(`CREATE INDEX "IDX_f74dc53460944a424b56b8f7da" ON "pair" ("token0_id") `)
     await db.query(`CREATE INDEX "IDX_4419691fc411b8af754dfa65ce" ON "pair" ("token1_id") `)
     await db.query(`CREATE TABLE "bundle" ("id" character varying NOT NULL, "eth_price" numeric(38,20) NOT NULL, CONSTRAINT "PK_637e3f87e837d6532109c198dea" PRIMARY KEY ("id"))`)

@@ -14,9 +14,15 @@ export class Pair {
   @PrimaryColumn_()
   id!: string
 
+  @Column_("text", {nullable: false})
+  token0Id!: string
+
   @Index_()
   @ManyToOne_(() => Token, {nullable: true})
   token0!: Token
+
+  @Column_("text", {nullable: false})
+  token1Id!: string
 
   @Index_()
   @ManyToOne_(() => Token, {nullable: true})

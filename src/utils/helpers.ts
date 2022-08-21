@@ -58,6 +58,8 @@ interface LiquidityPositionData {
 export function createLiquidityPosition(data: LiquidityPositionData): LiquidityPosition {
     const { pair, user } = data
 
+    pair.liquidityProviderCount += 1
+
     return new LiquidityPosition({
         id: `${pair.id}-${user}`,
         liquidityTokenBalance: ZERO_BD,
