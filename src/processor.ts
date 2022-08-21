@@ -40,7 +40,7 @@ import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from '
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
-    .setBatchSize(100)
+    .setBatchSize(200)
     .setBlockRange({ from: 199900 })
     .setDataSource({
         chain: CHAIN_NODE,
