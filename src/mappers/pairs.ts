@@ -1,6 +1,6 @@
 import { EvmLogEvent } from '@subsquid/substrate-processor'
 import { ADDRESS_ZERO, FACTORY_ADDRESS, ZERO_BD } from '../consts'
-import { Transaction, TokenSwapEvent, Pair, LiquidityPosition, Bundle, UniswapFactory, Token } from '../model'
+import { Transaction, TokenSwapEvent, Pair, LiquidityPosition, Bundle, UniswapFactory } from '../model'
 import { getEthPriceInUSD, findEthPerToken, WHITELIST, MINIMUM_USD_THRESHOLD_NEW_PAIRS } from '../utils/pricing'
 import * as pairAbi from '../types/abi/pair'
 import { convertTokenToDecimal, createLiquidityPosition } from '../utils/helpers'
@@ -166,7 +166,6 @@ export class SyncMapper extends BaseMapper<SyncData> {
         const token0 = await getOrCreateToken.call(this, entities, pair.token0Id)
         const token1 = await getOrCreateToken.call(this, entities, pair.token1Id)
 
-
         // reset factory liquidity by subtracting onluy tarcked liquidity
         uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH)
 
@@ -275,7 +274,6 @@ export class MintMapper extends BaseMapper<MintData> {
 
         const token0 = await getOrCreateToken.call(this, entities, pair.token0Id)
         const token1 = await getOrCreateToken.call(this, entities, pair.token1Id)
-
 
         token0.txCount += 1
 

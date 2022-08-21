@@ -1,4 +1,4 @@
-import { assertNotNull, BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
+import { BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 
 export abstract class BaseMapper<T> {

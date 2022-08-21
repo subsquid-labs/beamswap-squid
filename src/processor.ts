@@ -1,10 +1,4 @@
-import {
-    BatchContext,
-    EvmLogEvent,
-    EvmLogHandlerContext,
-    SubstrateBatchProcessor,
-    SubstrateBlock,
-} from '@subsquid/substrate-processor'
+import { BatchContext, EvmLogEvent, SubstrateBatchProcessor, SubstrateBlock } from '@subsquid/substrate-processor'
 import * as factory from './types/abi/factory'
 import * as pair from './types/abi/pair'
 import * as swapFlashLoan from './types/abi/swapFlashLoan'
@@ -28,16 +22,6 @@ import { BaseMapper, EntityClass, EntityMap } from './mappers/baseMapper'
 import { NewPairMapper } from './mappers/factory'
 import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from './mappers/pairs'
 import { TokenSwapMapper } from './mappers/swapFlashLoan'
-// import {
-//     handleAddLiquidity,
-//     handleNewAdminFee,
-//     handleNewSwapFee,
-//     handleRemoveLiquidity,
-//     handleRemoveLiquidityImbalance,
-//     handleRemoveLiquidityOne,
-//     handleStopRampA,
-//     handleTokenSwap,
-// } from '../swapFlashLoan'
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
@@ -63,35 +47,11 @@ const processor = new SubstrateBatchProcessor()
         ],
     })
     .addEvmLog('0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f', {
-        filter: [
-            [
-                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
-                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
-                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
-                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
-            ],
-        ],
+        filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
         range: { from: 1329660 },
     })
     .addEvmLog('0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921', {
-        filter: [
-            [
-                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
-                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
-                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
-                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
-            ],
-        ],
+        filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
         range: { from: 1298636 },
     })
 
@@ -102,9 +62,9 @@ processor.run(database, async (ctx) => {
         for (const item of block.items) {
             if (item.kind === 'event') {
                 if (item.name === 'EVM.Log') {
-                    await handleEvmLog(ctx, block.header, item.event).then((evmLogMappers) =>
-                        mappers.push(...evmLogMappers)
-                    )
+                    await handleEvmLog(ctx, block.header, item.event).then((mapper) => {
+                        if (mapper != null) mappers.push(mapper)
+                    })
                 }
             }
         }
@@ -162,67 +122,31 @@ async function handleEvmLog(
     ctx: BatchContext<Store, unknown>,
     block: SubstrateBlock,
     event: EvmLogEvent
-): Promise<BaseMapper<any>[]> {
-    const mappers: BaseMapper<any>[] = []
+): Promise<BaseMapper<any> | undefined> {
     const contractAddress = event.args.address
     switch (contractAddress) {
         case FACTORY_ADDRESS:
-            await new NewPairMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-            break
+            return await new NewPairMapper(ctx, block).parse(event)
         case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
         case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
-            switch (event.args.topics[0]) {
-                // case swapFlashLoan.events['NewAdminFee(uint256)'].topic:
-                //     await handleNewAdminFee(ctx)
-                //     break
-                // case swapFlashLoan.events['NewSwapFee(uint256)'].topic:
-                //     await handleNewSwapFee(ctx)
-                //     break
-                // case swapFlashLoan.events['StopRampA(uint256,uint256)'].topic:
-                //     await handleStopRampA(ctx)
-                //     break
-                // case swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic:
-                //     await handleAddLiquidity(ctx)
-                //     break
-                // case swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic:
-                //     await handleRemoveLiquidity(ctx)
-                //     break
-                // case swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)']
-                //     .topic:
-                //     await handleRemoveLiquidityImbalance(ctx)
-                //     break
-                // case swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic:
-                //     await handleRemoveLiquidityOne(ctx)
-                //     break
-                case swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic:
-                    await new TokenSwapMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                    break
-            }
-            break
+            return await new TokenSwapMapper(ctx, block).parse(event)
         }
         default:
             if (await isKnownPairContracts(ctx.store, contractAddress)) {
                 switch (event.args.topics[0]) {
                     case pair.events['Transfer(address,address,uint256)'].topic:
-                        await new TransferMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                        break
+                        return await new TransferMapper(ctx, block).parse(event)
                     case pair.events['Sync(uint112,uint112)'].topic:
-                        await new SyncMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                        break
+                        return await new SyncMapper(ctx, block).parse(event)
                     case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                        await new SwapMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                        break
+                        return await new SwapMapper(ctx, block).parse(event)
                     case pair.events['Mint(address,uint256,uint256)'].topic:
-                        await new MintMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                        break
+                        return await new MintMapper(ctx, block).parse(event)
                     case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                        await new BurnMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
-                        break
+                        return await new BurnMapper(ctx, block).parse(event)
                 }
             }
     }
-
-    return mappers
 }
 
 const topUpdateInterval = 60 * 60 * 1000
