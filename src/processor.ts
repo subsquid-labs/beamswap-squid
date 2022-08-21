@@ -27,6 +27,7 @@ import { Big as BigDecimal } from 'big.js'
 import { BaseMapper, EntityClass, EntityMap } from './mappers/baseMapper'
 import { NewPairMapper } from './mappers/factory'
 import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from './mappers/pairs'
+import { TokenSwapMapper } from './mappers/swapFlashLoan'
 // import {
 //     handleAddLiquidity,
 //     handleNewAdminFee,
@@ -168,37 +169,37 @@ async function handleEvmLog(
         case FACTORY_ADDRESS:
             await new NewPairMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
             break
-        // case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
-        // case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
-        //     switch (ctx.event.args.topics[0]) {
-        //         case swapFlashLoan.events['NewAdminFee(uint256)'].topic:
-        //             await handleNewAdminFee(ctx)
-        //             break
-        //         case swapFlashLoan.events['NewSwapFee(uint256)'].topic:
-        //             await handleNewSwapFee(ctx)
-        //             break
-        //         case swapFlashLoan.events['StopRampA(uint256,uint256)'].topic:
-        //             await handleStopRampA(ctx)
-        //             break
-        //         case swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic:
-        //             await handleAddLiquidity(ctx)
-        //             break
-        //         case swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic:
-        //             await handleRemoveLiquidity(ctx)
-        //             break
-        //         case swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)']
-        //             .topic:
-        //             await handleRemoveLiquidityImbalance(ctx)
-        //             break
-        //         case swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic:
-        //             await handleRemoveLiquidityOne(ctx)
-        //             break
-        //         case swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic:
-        //             await handleTokenSwap(ctx)
-        //             break
-        //     }
-        //     break
-        // }
+        case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
+        case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
+            switch (event.args.topics[0]) {
+                // case swapFlashLoan.events['NewAdminFee(uint256)'].topic:
+                //     await handleNewAdminFee(ctx)
+                //     break
+                // case swapFlashLoan.events['NewSwapFee(uint256)'].topic:
+                //     await handleNewSwapFee(ctx)
+                //     break
+                // case swapFlashLoan.events['StopRampA(uint256,uint256)'].topic:
+                //     await handleStopRampA(ctx)
+                //     break
+                // case swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic:
+                //     await handleAddLiquidity(ctx)
+                //     break
+                // case swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic:
+                //     await handleRemoveLiquidity(ctx)
+                //     break
+                // case swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)']
+                //     .topic:
+                //     await handleRemoveLiquidityImbalance(ctx)
+                //     break
+                // case swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic:
+                //     await handleRemoveLiquidityOne(ctx)
+                //     break
+                case swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic:
+                    await new TokenSwapMapper(ctx, block).parse(event).then((mapper) => mappers.push(mapper))
+                    break
+            }
+            break
+        }
         default:
             if (await isKnownPairContracts(ctx.store, contractAddress)) {
                 switch (event.args.topics[0]) {
