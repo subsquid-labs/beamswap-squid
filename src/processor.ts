@@ -10,7 +10,17 @@ import * as pair from './types/abi/pair'
 import * as swapFlashLoan from './types/abi/swapFlashLoan'
 import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from './consts'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
-import { Pair, TokenSwapEvent, Swapper, SwapperType, UniswapFactory, Bundle, Token, LiquidityPosition, Transaction } from './model'
+import {
+    Pair,
+    TokenSwapEvent,
+    Swapper,
+    SwapperType,
+    UniswapFactory,
+    Bundle,
+    Token,
+    LiquidityPosition,
+    Transaction,
+} from './model'
 import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
 import { Big as BigDecimal } from 'big.js'
@@ -114,6 +124,7 @@ processor.run(database, async (ctx) => {
             .then((es) => new Map(es.map((e: any) => [e.id, e])))
         entities.set(entityClass, e)
     }
+    entities.set(Token, await ctx.store.find(Token, {}).then((es) => new Map(es.map((e: any) => [e.id, e]))))
 
     for (const mapper of mappers) {
         await mapper.process(entities)
