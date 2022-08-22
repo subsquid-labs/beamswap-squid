@@ -56,6 +56,6 @@ export class TokenSwapEvent {
   /**
    * BigDecimal
    */
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: marshal.bigDecimalTransformer})
+  @Column_("numeric", {nullable: false, transformer: marshal.bigDecimalTransformer})
   amountUSD!: BigDecimal
 }
