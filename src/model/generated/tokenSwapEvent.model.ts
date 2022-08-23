@@ -19,6 +19,7 @@ export class TokenSwapEvent {
   @ManyToOne_(() => Transaction, {nullable: true})
   transaction!: Transaction
 
+  @Index_()
   @Column_("timestamp with time zone", {nullable: true})
   timestamp!: Date
 
@@ -26,6 +27,7 @@ export class TokenSwapEvent {
   @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair
 
+  @Index_()
   @Column_("text", {nullable: true})
   pairId!: string
 
@@ -33,9 +35,11 @@ export class TokenSwapEvent {
   @ManyToOne_(() => Pool, {nullable: true})
   pool!: Pool
 
+  @Index_()
   @Column_("text", {nullable: true})
   poolId!: string
 
+  @Index_()
   @Column_("text", {nullable: false})
   buyer!: string
 
