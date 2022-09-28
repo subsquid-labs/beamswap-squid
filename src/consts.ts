@@ -1,4 +1,4 @@
-import { Big as BigDecimal } from 'big.js'
+import { BigDecimal } from '@subsquid/big-decimal'
 
 export const knownContracts: ReadonlyArray<string> = []
 

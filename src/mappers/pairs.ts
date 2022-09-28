@@ -3,10 +3,11 @@ import { ADDRESS_ZERO, FACTORY_ADDRESS, ZERO_BD } from '../consts'
 import { Transaction, TokenSwapEvent, Pair, LiquidityPosition, Bundle, UniswapFactory } from '../model'
 import { getEthPriceInUSD, findEthPerToken, WHITELIST, MINIMUM_USD_THRESHOLD_NEW_PAIRS } from '../utils/pricing'
 import * as pairAbi from '../types/abi/pair'
-import { convertTokenToDecimal, createLiquidityPosition } from '../utils/helpers'
+import { createLiquidityPosition } from '../utils/helpers'
 import { BaseMapper, EntityClass, EntityMap } from './baseMapper'
 import assert from 'assert'
 import { getOrCreateToken } from '../entities/token'
+import {BigDecimal} from '@subsquid/big-decimal'
 
 const transferEventAbi = pairAbi.events['Transfer(address,address,uint256)']
 
@@ -67,7 +68,7 @@ export class TransferMapper extends BaseMapper<TransferData> {
         assert(pair != null)
 
         // liquidity token amount being transfered
-        const value = convertTokenToDecimal(this.data.amount, 18)
+        const value = BigDecimal(this.data.amount, 18)
 
         // get or create transaction
         let transaction = entities.get(Transaction).get(txHash)
@@ -76,8 +77,6 @@ export class TransferMapper extends BaseMapper<TransferData> {
                 id: txHash,
                 blockNumber,
                 timestamp,
-                mints: [],
-                burns: [],
                 swaps: [],
             })
             entities.get(Transaction).set(txHash, transaction)
@@ -173,8 +172,8 @@ export class SyncMapper extends BaseMapper<SyncData> {
         token0.totalLiquidity = token0.totalLiquidity.minus(pair.reserve0)
         token1.totalLiquidity = token1.totalLiquidity.minus(pair.reserve1)
 
-        pair.reserve0 = convertTokenToDecimal(reserve0, token0.decimals)
-        pair.reserve1 = convertTokenToDecimal(reserve1, token1.decimals)
+        pair.reserve0 = BigDecimal(reserve0, token0.decimals)
+        pair.reserve1 = BigDecimal(reserve1, token1.decimals)
 
         pair.token0Price = !pair.reserve1.eq(ZERO_BD) ? pair.reserve0.div(pair.reserve1) : ZERO_BD
         pair.token1Price = !pair.reserve0.eq(ZERO_BD) ? pair.reserve1.div(pair.reserve0) : ZERO_BD
@@ -436,13 +435,13 @@ export class SwapMapper extends BaseMapper<SwapData> {
         assert(uniswap != null)
 
         const token0 = await getOrCreateToken.call(this, entities, pair.token0Id)
-        const amount0In = convertTokenToDecimal(this.data.amount0In, token0.decimals)
-        const amount0Out = convertTokenToDecimal(this.data.amount0Out, token0.decimals)
+        const amount0In = BigDecimal(this.data.amount0In, token0.decimals)
+        const amount0Out = BigDecimal(this.data.amount0Out, token0.decimals)
         const amount0Total = amount0Out.plus(amount0In)
 
         const token1 = await getOrCreateToken.call(this, entities, pair.token1Id)
-        const amount1In = convertTokenToDecimal(this.data.amount1In, token1.decimals)
-        const amount1Out = convertTokenToDecimal(this.data.amount1Out, token1.decimals)
+        const amount1In = BigDecimal(this.data.amount1In, token1.decimals)
+        const amount1Out = BigDecimal(this.data.amount1Out, token1.decimals)
         const amount1Total = amount1Out.plus(amount1In)
 
         // get total amounts of derived USD and ETH for tracking
@@ -523,16 +522,14 @@ export class SwapMapper extends BaseMapper<SwapData> {
                 id: txHash,
                 blockNumber,
                 timestamp,
-                mints: [],
                 swaps: [],
-                burns: [],
             })
             entities.get(Transaction).set(txHash, transaction)
         }
 
-        const swapId = `${transaction.id}-${transaction.swaps.length}`
+        const swapId = `${transaction.id}-${transaction.swaps?.length}`
 
-        transaction.swaps.push(swapId)
+        transaction.swaps?.push(swapId)
 
         // if (amount0Total.eq(0) && amount1Total.eq(0)) return
 

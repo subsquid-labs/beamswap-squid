@@ -18,11 +18,14 @@ import {
 } from './model'
 import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
-import { Big as BigDecimal } from 'big.js'
 import { BaseMapper, EntityClass, EntityMap } from './mappers/baseMapper'
 import { NewPairMapper } from './mappers/factory'
 import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from './mappers/pairs'
 import { TokenSwapMapper } from './mappers/swapFlashLoan'
+import { BigDecimal } from '@subsquid/big-decimal'
+import { readFileSync } from 'fs'
+
+const knownContracts: { lastBlock: number; pools: string[] } = JSON.parse(readFileSync('./assets/pools.json').toString())
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
@@ -39,13 +42,13 @@ const processor = new SubstrateBatchProcessor()
     .addEvmLog('*', {
         filter: [
             [
-                // pair.events['Transfer(address,address,uint256)'].topic,
                 pair.events['Sync(uint112,uint112)'].topic,
                 pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
-                // pair.events['Mint(address,uint256,uint256)'].topic,
-                // pair.events['Burn(address,uint256,uint256,address)'].topic,
             ],
         ],
+        range: {
+            from: knownContracts.lastBlock + 1,
+        },
     })
     .addEvmLog('0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f', {
         filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
@@ -55,6 +58,21 @@ const processor = new SubstrateBatchProcessor()
         filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
         range: { from: 1298636 },
     })
+
+for (const address of knownContracts.pools) {
+    processor.addEvmLog(address, {
+        filter: [
+            [
+                pair.events['Sync(uint112,uint112)'].topic,
+                pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
+            ],
+        ],
+        range: {
+            from: 0,
+            to: knownContracts.lastBlock,
+        },
+    })
+}
 
 processor.run(database, async (ctx) => {
     const mappers: BaseMapper<any>[] = []
@@ -109,14 +127,12 @@ processor.run(database, async (ctx) => {
     await updateTop(ctx, lastBlock)
 })
 
-const knownPairContracts: Set<string> = new Set()
-
 async function isKnownPairContracts(store: Store, address: string) {
     const normalizedAddress = address.toLowerCase()
-    if (knownPairContracts.has(normalizedAddress)) {
+    if (knownContracts.pools.includes(normalizedAddress)) {
         return true
     } else if ((await store.countBy(Pair, { id: normalizedAddress })) > 0) {
-        knownPairContracts.add(normalizedAddress)
+        knownContracts.pools.push(normalizedAddress)
         return true
     }
     return false
@@ -186,54 +202,54 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         if (user == null) {
             user = new Swapper({
                 id: TokenSwapEvent.buyer,
-                dayAmountUSD: '0',
-                weekAmountUSD: '0',
-                monthAmountUSD: '0',
+                dayAmountUSD: BigDecimal('0'),
+                weekAmountUSD: BigDecimal('0'),
+                monthAmountUSD: BigDecimal('0'),
                 type: SwapperType.USER,
             })
             swappers.set(user.id, user)
         }
 
-        let pair = swappers.get(TokenSwapEvent.pairId)
+        let pair = swappers.get(TokenSwapEvent.pairId!)
         if (pair == null) {
             pair = new Swapper({
                 id: String(TokenSwapEvent.pairId),
-                dayAmountUSD: '0',
-                weekAmountUSD: '0',
-                monthAmountUSD: '0',
+                dayAmountUSD: BigDecimal('0'),
+                weekAmountUSD: BigDecimal('0'),
+                monthAmountUSD: BigDecimal('0'),
                 type: SwapperType.PAIR,
             })
             swappers.set(pair.id, pair)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - DAY_MS) {
-            user.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.dayAmountUSD).toFixed()
-            pair.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.dayAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.DAY], TokenSwapEvent.amountUSD.toFixed())
+            user.dayAmountUSD = TokenSwapEvent.amountUSD.plus(user.dayAmountUSD)
+            pair.dayAmountUSD = TokenSwapEvent.amountUSD.plus(pair.dayAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.DAY], TokenSwapEvent.amountUSD)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - WEEK_MS) {
-            user.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.weekAmountUSD).toFixed()
-            pair.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.weekAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.WEEK], TokenSwapEvent.amountUSD.toFixed())
+            user.weekAmountUSD = TokenSwapEvent.amountUSD.plus(user.weekAmountUSD)
+            pair.weekAmountUSD = TokenSwapEvent.amountUSD.plus(pair.weekAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.WEEK], TokenSwapEvent.amountUSD)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - MONTH_MS) {
-            user.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.monthAmountUSD).toFixed()
-            pair.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.monthAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.MONTH], TokenSwapEvent.amountUSD.toFixed())
+            user.monthAmountUSD = TokenSwapEvent.amountUSD.plus(user.monthAmountUSD)
+            pair.monthAmountUSD = TokenSwapEvent.amountUSD.plus(pair.monthAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.MONTH], TokenSwapEvent.amountUSD)
         }
     }
 
     for (const swapper of swappers.values()) {
         if (swapper.type === SwapperType.PAIR) {
-            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].pairsCount += 1
-            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
-            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
+            if (swapper.dayAmountUSD.gt(0)) newSwapStat[SwapPeriod.DAY].pairsCount += 1
+            if (swapper.weekAmountUSD.gt(0)) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
+            if (swapper.monthAmountUSD.gt(0)) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
         } else {
-            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].usersCount += 1
-            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].usersCount += 1
-            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].usersCount += 1
+            if (swapper.dayAmountUSD.gt(0)) newSwapStat[SwapPeriod.DAY].usersCount += 1
+            if (swapper.weekAmountUSD.gt(0)) newSwapStat[SwapPeriod.WEEK].usersCount += 1
+            if (swapper.monthAmountUSD.gt(0)) newSwapStat[SwapPeriod.MONTH].usersCount += 1
         }
     }
 
@@ -246,9 +262,9 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     ctx.log.info('Top updated.')
 }
 
-function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: string) {
+function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: BigDecimal) {
     swapStat.swapsCount += 1
-    swapStat.totalAmountUSD = BigDecimal(amountUSD).plus(swapStat.totalAmountUSD).toFixed()
+    swapStat.totalAmountUSD = amountUSD.plus(swapStat.totalAmountUSD)
 }
 
 function createSwapStat(id: SwapPeriod, from: number, to: number) {
@@ -259,6 +275,6 @@ function createSwapStat(id: SwapPeriod, from: number, to: number) {
         swapsCount: 0,
         usersCount: 0,
         pairsCount: 0,
-        totalAmountUSD: '0',
+        totalAmountUSD: BigDecimal('0'),
     })
 }

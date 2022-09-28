@@ -1,10 +1,10 @@
 import { ZERO_BD } from '../consts'
-import { convertTokenToDecimal } from '../utils/helpers'
 
 import { Token } from '../model'
 
 import * as ERC20 from '../types/abi/erc20'
 import { BaseMapper, EntityMap } from '../mappers/baseMapper'
+import { BigDecimal } from '@subsquid/big-decimal'
 
 export async function getOrCreateToken(
     this: BaseMapper<unknown>,
@@ -31,7 +31,7 @@ export async function getOrCreateToken(
         id: tokenId.toLowerCase(),
         symbol,
         name,
-        totalSupply: convertTokenToDecimal(totalSupply.toBigInt(), decimals),
+        totalSupply: BigDecimal(totalSupply.toBigInt(), decimals).toFixed(),
         decimals,
         derivedETH: ZERO_BD,
         tradeVolume: ZERO_BD,

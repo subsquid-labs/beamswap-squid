@@ -1,3 +1,4 @@
+import {BigDecimal} from '@subsquid/big-decimal'
 import {
     Entity as Entity_,
     Column as Column_,
@@ -5,6 +6,7 @@ import {
     ManyToOne as ManyToOne_,
     Index as Index_,
 } from 'typeorm'
+import * as marshal from "../generated/marshal"
 
 export enum SwapPeriod {
     DAY = 'Day',
@@ -36,6 +38,6 @@ export class SwapStatPeriod {
     @Column_('int4', { nullable: false })
     usersCount!: number
 
-    @Column_('numeric', { nullable: false })
-    totalAmountUSD!: string
+    @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
+    totalAmountUSD!: BigDecimal
 }

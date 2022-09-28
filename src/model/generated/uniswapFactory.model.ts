@@ -1,6 +1,6 @@
+import {BigDecimal} from "@subsquid/big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
-import {bigDecimalTransformer} from "./marshal"
-import { Big as BigDecimal } from 'big.js'
+import * as marshal from "./marshal"
 
 @Entity_()
 export class UniswapFactory {
@@ -14,19 +14,19 @@ export class UniswapFactory {
   @Column_("int4", {nullable: false})
   pairCount!: number
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   totalVolumeUSD!: BigDecimal
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   totalVolumeETH!: BigDecimal
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   untrackedVolumeUSD!: BigDecimal
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   totalLiquidityUSD!: BigDecimal
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   totalLiquidityETH!: BigDecimal
 
   @Column_("int4", {nullable: false})

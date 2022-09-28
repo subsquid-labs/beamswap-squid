@@ -1,10 +1,10 @@
+import {BigDecimal} from "@subsquid/big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 import * as marshal from "./marshal"
 import {Transaction} from "./transaction.model"
 import {Pair} from "./pair.model"
-import { Big as BigDecimal } from 'big.js'
-import {Token} from "./token.model"
 import {Pool} from "./pool.model"
+import {Token} from "./token.model"
 
 @Entity_()
 export class TokenSwapEvent {
@@ -17,27 +17,25 @@ export class TokenSwapEvent {
 
   @Index_()
   @ManyToOne_(() => Transaction, {nullable: true})
-  transaction!: Transaction
+  transaction!: Transaction | undefined | null
 
   @Index_()
-  @Column_("timestamp with time zone", {nullable: true})
+  @Column_("timestamp with time zone", {nullable: false})
   timestamp!: Date
 
   @Index_()
   @ManyToOne_(() => Pair, {nullable: true})
-  pair!: Pair
+  pair!: Pair | undefined | null
 
-  @Index_()
   @Column_("text", {nullable: true})
-  pairId!: string
+  pairId!: string | undefined | null
 
   @Index_()
   @ManyToOne_(() => Pool, {nullable: true})
-  pool!: Pool
+  pool!: Pool | undefined | null
 
-  @Index_()
   @Column_("text", {nullable: true})
-  poolId!: string
+  poolId!: string | undefined | null
 
   @Index_()
   @Column_("text", {nullable: false})
@@ -57,9 +55,6 @@ export class TokenSwapEvent {
   @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})
   boughtAmount!: bigint
 
-  /**
-   * BigDecimal
-   */
-  @Column_("numeric", {nullable: false, transformer: marshal.bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   amountUSD!: BigDecimal
 }

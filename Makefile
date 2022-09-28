@@ -1,13 +1,18 @@
 process: migrate
 	@node -r dotenv/config lib/processor.js
 
+process: migrate
+	@node -r dotenv/config lib/processor.js
+
+pairs:
+	@node -r dotenv/config lib/pairsProcessor.js
 
 serve:
 	@npx squid-graphql-server
 
 
 migrate:
-	@npx sqd db:migrate
+	@npx squid-typeorm-migration apply
 
 
 migration:
@@ -42,4 +47,4 @@ down:
 	@docker-compose down
 
 
-.PHONY: process serve start codegen migration migrate up down typegen
+.PHONY: process serve start codegen migration migrate up down typegen pairs

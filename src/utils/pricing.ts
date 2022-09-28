@@ -1,9 +1,9 @@
 import { ZERO_BD, ONE_BD } from '../consts'
-import { Big as BigDecimal } from 'big.js'
 import { getOrCreateToken } from '../entities/token'
 import { Pair } from '../model'
 import { BaseMapper, EntityMap } from '../mappers/baseMapper'
 import assert from 'assert'
+import {BigDecimal} from '@subsquid/big-decimal'
 
 export const WGLMR_ADDRESS = '0xAcc15dC74880C9944775448304B263D191c6077F'.toLowerCase() //Replace with wrapped glint
 export const WGLMR_USDC_ADDRESS = '0xb929914B89584b4081C7966AC6287636F7EfD053'.toLowerCase() //replace with wglint usdc LP address
@@ -28,10 +28,10 @@ export async function getEthPriceInUSD(this: BaseMapper<unknown>, entities: Enti
 }
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
-export const MINIMUM_USD_THRESHOLD_NEW_PAIRS = new BigDecimal(3000)
+export const MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal(3000)
 
 // minimum liquidity for price to get tracked
-export const MINIMUM_LIQUIDITY_THRESHOLD_ETH = new BigDecimal(5)
+export const MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal(5)
 
 /**
  * Search through graph to find derived Eth per token.

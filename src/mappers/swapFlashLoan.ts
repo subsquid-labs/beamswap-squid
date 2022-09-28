@@ -3,8 +3,8 @@ import { getOrCreateToken } from '../entities/token'
 import { Pool, TokenSwapEvent } from '../model'
 import { EvmLogEvent } from '@subsquid/substrate-processor'
 import * as SwapFlash from '../types/abi/swapFlashLoan'
-import { convertTokenToDecimal } from '../utils/helpers'
 import { BaseMapper, EntityClass, EntityMap } from './baseMapper'
+import { BigDecimal } from '@subsquid/big-decimal'
 
 interface TokenSwapData {
     txHash: string
@@ -65,15 +65,15 @@ export class TokenSwapMapper extends BaseMapper<TokenSwapData> {
             id: 'token_exchange-' + txHash,
 
             timestamp,
-            pool,
+            poolId: pool.id,
             buyer,
             tokenSold,
             soldAmount,
             tokenBought,
             boughtAmount,
 
-            amountUSD: convertTokenToDecimal(soldAmount, tokenSold.decimals)
-                .plus(convertTokenToDecimal(boughtAmount, tokenBought.decimals))
+            amountUSD: BigDecimal(soldAmount, tokenSold.decimals)
+                .plus(BigDecimal(boughtAmount, tokenBought.decimals))
                 .div(2)
                 .mul(usdPrice),
         })

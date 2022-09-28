@@ -6,20 +6,15 @@ type UniswapFactory @entity {
   pairCount: Int!
 
   # total volume
-  "BigDecimal"
-  totalVolumeUSD: String!
-  "BigDecimal"
-  totalVolumeETH: String!
+  totalVolumeUSD: BigDecimal!
+  totalVolumeETH: BigDecimal!
 
   # untracked values - less confident USD scores
-  "BigDecimal"
-  untrackedVolumeUSD: String!
+  untrackedVolumeUSD: BigDecimal!
 
   # total liquidity
-  "BigDecimal"
-  totalLiquidityUSD: String!
-  "BigDecimal"
-  totalLiquidityETH: String!
+  totalLiquidityUSD: BigDecimal!
+  totalLiquidityETH: BigDecimal!
 
   # transactions
   txCount: Int!
@@ -38,63 +33,49 @@ type Token @entity {
   totalSupply: String!
 
   # token specific volume
-  "BigDecimal"
-  tradeVolume: String!
-  "BigDecimal"
-  tradeVolumeUSD: String!
-  "BigDecimal"
-  untrackedVolumeUSD: String!
+  tradeVolume: BigDecimal!
+  tradeVolumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
 
   # transactions across all pairs
   txCount: Int!
 
   # liquidity across all pairs
-  "BigDecimal"
-  totalLiquidity: String!
+  totalLiquidity: BigDecimal!
 
   # derived prices
-  "BigDecimal"
-  derivedETH: String!
+  derivedETH: BigDecimal!
 }
 
 type Pair @entity {
   # pair address
   id: ID!
 
-  # mirrored from the smart contract
   token0: Token!
+  token0Id: ID!
+
   token1: Token!
-  "BigDecimal"
-  reserve0: String!
-  "BigDecimal"
-  reserve1: String!
-  "BigDecimal"
-  totalSupply: String!
+  token1Id: ID!
+  
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+  totalSupply: BigDecimal!
 
   # derived liquidity
-  "BigDecimal"
-  reserveETH: String!
-  "BigDecimal"
-  reserveUSD: String!
+  reserveETH: BigDecimal!
+  reserveUSD: BigDecimal!
   # used for separating per pair reserves and global
-  "BigDecimal"
-  trackedReserveETH: String!
+  trackedReserveETH: BigDecimal!
 
   # Price in terms of the asset pair
-  "BigDecimal"
-  token0Price: String!
-  "BigDecimal"
-  token1Price: String!
+  token0Price: BigDecimal!
+  token1Price: BigDecimal!
 
   # lifetime volume stats
-  "BigDecimal"
-  volumeToken0: String!
-  "BigDecimal"
-  volumeToken1: String!
-  "BigDecimal"
-  volumeUSD: String!
-  "BigDecimal"
-  untrackedVolumeUSD: String!
+  volumeToken0: BigDecimal!
+  volumeToken1: BigDecimal!
+  volumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
   txCount: Int!
 
   # creation stats
@@ -116,8 +97,7 @@ type LiquidityPosition @entity {
   id: ID!
   user: String!
   pair: Pair!
-  "BigDecimal"
-  liquidityTokenBalance: String!
+  liquidityTokenBalance: BigDecimal!
 }
 
 type Transaction @entity {
@@ -147,15 +127,13 @@ type TokenSwapEvent @entity {
   tokenBought: Token!
   boughtAmount: BigInt!
 
-  "BigDecimal"
-  amountUSD: String! # derived info
+  amountUSD: BigDecimal! # derived info
 }
 
 # stores for USD calculations
 type Bundle @entity {
   id: ID!
-  "BigDecimal"
-  ethPrice: String! # price of ETH usd
+  ethPrice: BigDecimal! # price of ETH usd
 }
 
 type Pool @entity {

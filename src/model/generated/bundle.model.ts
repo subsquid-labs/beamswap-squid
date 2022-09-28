@@ -1,6 +1,6 @@
+import {BigDecimal} from "@subsquid/big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
-import {bigDecimalTransformer} from "./marshal"
-import { Big as BigDecimal } from 'big.js'
+import * as marshal from "./marshal"
 
 @Entity_()
 export class Bundle {
@@ -11,6 +11,6 @@ export class Bundle {
   @PrimaryColumn_()
   id!: string
 
-  @Column_("numeric", {nullable: false, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   ethPrice!: BigDecimal
 }

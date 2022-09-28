@@ -78,8 +78,8 @@ export class NewPairMapper extends BaseMapper<NewPairData> {
 
         const pair = new Pair({
             id: pairId,
-            token0,
-            token1,
+            token0Id: token0.id,
+            token1Id: token1.id,
             liquidityProviderCount: 0,
             createdAtTimestamp: timestamp,
             createdAtBlockNumber: blockNumber,
