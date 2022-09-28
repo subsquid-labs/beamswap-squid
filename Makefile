@@ -1,9 +1,6 @@
 process: migrate
 	@node -r dotenv/config lib/processor.js
 
-process: migrate
-	@node -r dotenv/config lib/processor.js
-
 pairs:
 	@node -r dotenv/config lib/pairsProcessor.js
 
