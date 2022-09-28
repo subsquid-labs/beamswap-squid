@@ -7,7 +7,7 @@ import { TokenSwapEvent, Swapper, SwapPeriod, SwapperType, SwapStatPeriod } from
 import { DAY_MS } from '../../consts'
 import { In, Between } from 'typeorm'
 import assert from 'assert'
-import { Big as BigDecimal } from 'big.js'
+import { BigDecimal } from '@subsquid/big-decimal'
 
 @ObjectType()
 class SwapInfoObject {
@@ -31,8 +31,8 @@ class SwapDayVolumeObject {
     @Field(() => Date, { nullable: false })
     day!: Date
 
-    @Field(() => String, { nullable: false })
-    amountUSD!: string
+    @Field(() => BigDecimal, { nullable: false })
+    amountUSD!: BigDecimal
 }
 
 @ObjectType()
@@ -44,11 +44,8 @@ class SwapperObject {
     @Field(() => String, { nullable: false })
     id!: string
 
-    @Field(() => String, { nullable: false })
-    amountUSD!: string
-
-    @Field(() => [SwapDayVolumeObject], { nullable: false })
-    volumesPerDay!: SwapDayVolumeObject[]
+    @Field(() => BigDecimal, { nullable: false })
+    amountUSD!: BigDecimal
 }
 
 @ObjectType()
@@ -69,8 +66,8 @@ class TopObject {
     @Field(() => Int, { nullable: false })
     swapsCount!: number
 
-    @Field(() => String, { nullable: false })
-    totalAmountUSD!: string
+    @Field(() => BigDecimal, { nullable: false })
+    totalAmountUSD!: BigDecimal
 
     @Field(() => [SwapperObject], { nullable: false })
     top!: SwapperObject[]
@@ -178,30 +175,28 @@ export class TradersResolver {
         })
         assert(stat != null)
 
-        const top = requireEntities
-            ? await manager.find(Swapper, {
-                  where: { type },
-                  order: {
-                      dayAmountUSD: range === Range.DAY ? order : undefined,
-                      weekAmountUSD: range === Range.WEEK ? order : undefined,
-                      monthAmountUSD: range === Range.MONTH ? order : undefined,
-                  },
-                  take: limit,
-                  skip: offset,
-              })
-            : []
-
-        const daysInfo = requireVolumesPerDay
-            ? await new DayVolumeResolver(this.tx)
-                  .getDayVolume(
-                      top.map((u) => u.id),
-                      stat.from,
-                      stat.to
+        const top: Swapper[] = requireEntities
+            ? await manager
+                  .query(
+                      `
+                    SELECT 
+                        id, 
+                        day_amount_usd as "dayAmountUSD",
+                        week_amount_usd as "weekAmountUSD",
+                        month_amount_usd as "monthAmountUSD"
+                    FROM swapper
+                    ORDER BY ${
+                        range === Range.DAY
+                            ? '"dayAmountUSD"'
+                            : range === Range.WEEK
+                            ? '"weekAmountUSD"'
+                            : '"monthAmountUSD"'
+                    } ${order}
+                    ${limit != null ? `LIMIT ${limit}` : ''}
+                    `
                   )
-                  .then((users) => new Map(users.map((u) => [u.id, u.volumesPerDay])))
-            : new Map()
-
-        console.table(top)
+                  .then((swappers) => swappers.map((s: any) => new Swapper(s)))
+            : []
 
         return new TopObject({
             to: stat.to,
@@ -220,7 +215,6 @@ export class TradersResolver {
                                     : range === Range.WEEK
                                     ? s.weekAmountUSD
                                     : s.monthAmountUSD,
-                            volumesPerDay: daysInfo.get(s.id),
                         })
                 )
                 .sort((a, b) =>
@@ -228,7 +222,8 @@ export class TradersResolver {
                         .minus(b.amountUSD)
                         .mul(order === Order.DESC ? -1 : 1)
                         .toNumber()
-                ),
+                )
+                .filter((u) => BigDecimal(u.amountUSD).gt(0)),
         })
     }
 }
@@ -268,11 +263,11 @@ export class DayVolumeResolver {
             if (amountUSDperDay == null) {
                 amountUSDperDay = new SwapDayVolumeObject({
                     day: timestamp,
-                    amountUSD: '0',
+                    amountUSD: BigDecimal('0'),
                 })
                 user.volumesPerDay.push(amountUSDperDay)
             }
-            amountUSDperDay.amountUSD = BigDecimal(amountUSDperDay.amountUSD).add(TokenSwapEvent.amountUSD).toFixed()
+            amountUSDperDay.amountUSD = amountUSDperDay.amountUSD.add(TokenSwapEvent.amountUSD)
         }
 
         return [...users.values()]

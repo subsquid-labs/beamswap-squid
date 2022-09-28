@@ -12,7 +12,8 @@
         "ignoreStrings": true,
         "ignoreTemplateLiterals": true
       }
-    ]
+    ],
+    "@typescript-eslint/no-explicit-any": false
   },
   "extends": [
     "plugin:@typescript-eslint/recommended",

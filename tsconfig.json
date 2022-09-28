@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src"],
+  "include": ["src", "swapFlashLoan.ts"],
   "exclude": [
     "node_modules"
   ]

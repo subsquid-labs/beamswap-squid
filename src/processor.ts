@@ -1,34 +1,35 @@
-import {
-    BatchContext,
-    EvmLogHandlerContext,
-    SubstrateBatchProcessor,
-    SubstrateBlock,
-} from '@subsquid/substrate-processor'
+import { BatchContext, EvmLogEvent, SubstrateBatchProcessor, SubstrateBlock } from '@subsquid/substrate-processor'
 import * as factory from './types/abi/factory'
 import * as pair from './types/abi/pair'
 import * as swapFlashLoan from './types/abi/swapFlashLoan'
-import { handleNewPair } from './mappings/factory'
 import { CHAIN_NODE, DAY_MS, FACTORY_ADDRESS, HOUR_MS, MONTH_MS, WEEK_MS } from './consts'
-import { handleBurn, handleMint, handleSwap, handleSync, handleTransfer } from './mappings/pairs'
 import { Store, TypeormDatabase } from '@subsquid/typeorm-store'
-import { Pair, TokenSwapEvent, Swapper, SwapperType } from './model'
+import {
+    Pair,
+    TokenSwapEvent,
+    Swapper,
+    SwapperType,
+    UniswapFactory,
+    Bundle,
+    Token,
+    LiquidityPosition,
+    Transaction,
+    Pool,
+} from './model'
 import { SwapStatPeriod, SwapPeriod } from './model/custom/swapStat'
 import { Between, Not, In } from 'typeorm'
-import { Big as BigDecimal } from 'big.js'
-import {
-    handleAddLiquidity,
-    handleNewAdminFee,
-    handleNewSwapFee,
-    handleRemoveLiquidity,
-    handleRemoveLiquidityImbalance,
-    handleRemoveLiquidityOne,
-    handleStopRampA,
-    handleTokenSwap,
-} from './mappings/swapFlashLoan'
+import { BaseMapper, EntityClass, EntityMap } from './mappers/baseMapper'
+import { NewPairMapper } from './mappers/factory'
+import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from './mappers/pairs'
+import { TokenSwapMapper } from './mappers/swapFlashLoan'
+import { BigDecimal } from '@subsquid/big-decimal'
+import { readFileSync } from 'fs'
+
+const knownContracts: { lastBlock: number; pools: string[] } = JSON.parse(readFileSync('./assets/pools.json').toString())
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
-    .setBatchSize(100)
+    .setBatchSize(200)
     .setBlockRange({ from: 199900 })
     .setDataSource({
         chain: CHAIN_NODE,
@@ -41,125 +42,128 @@ const processor = new SubstrateBatchProcessor()
     .addEvmLog('*', {
         filter: [
             [
-                pair.events['Transfer(address,address,uint256)'].topic,
                 pair.events['Sync(uint112,uint112)'].topic,
                 pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
-                pair.events['Mint(address,uint256,uint256)'].topic,
-                pair.events['Burn(address,uint256,uint256,address)'].topic,
             ],
         ],
+        range: {
+            from: knownContracts.lastBlock + 1,
+        },
     })
     .addEvmLog('0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f', {
-        filter: [
-            [
-                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
-                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
-                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
-                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
-            ],
-        ],
+        filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
         range: { from: 1329660 },
     })
     .addEvmLog('0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921', {
-        filter: [
-            [
-                swapFlashLoan.events['NewAdminFee(uint256)'].topic,
-                swapFlashLoan.events['NewSwapFee(uint256)'].topic,
-                swapFlashLoan.events['RampA(uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['StopRampA(uint256,uint256)'].topic,
-                swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)'].topic,
-                swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic,
-                swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic,
-            ],
-        ],
+        filter: [[swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic]],
         range: { from: 1298636 },
     })
 
+for (const address of knownContracts.pools) {
+    processor.addEvmLog(address, {
+        filter: [
+            [
+                pair.events['Sync(uint112,uint112)'].topic,
+                pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic,
+            ],
+        ],
+        range: {
+            from: 0,
+            to: knownContracts.lastBlock,
+        },
+    })
+}
+
 processor.run(database, async (ctx) => {
+    const mappers: BaseMapper<any>[] = []
+
     for (const block of ctx.blocks) {
         for (const item of block.items) {
             if (item.kind === 'event') {
                 if (item.name === 'EVM.Log') {
-                    await handleEvmLog({ ...ctx, block: block.header, event: item.event })
+                    await handleEvmLog(ctx, block.header, item.event).then((mapper) => {
+                        if (mapper != null) mappers.push(mapper)
+                    })
                 }
             }
         }
+    }
+
+    const requests = new Map<EntityClass, Set<string>>()
+    for (const mapper of mappers) {
+        for (const [entityClass, ids] of mapper.getRequest()) {
+            const oldRequest = requests.get(entityClass) || new Set()
+            requests.set(entityClass, new Set([...oldRequest, ...ids]))
+        }
+    }
+
+    const entities = new EntityMap()
+    for (const [entityClass, ids] of requests) {
+        const e: Map<string, any> = await ctx.store
+            .find(entityClass, { where: { id: In([...ids]) } })
+            .then((es) => new Map(es.map((e: any) => [e.id, e])))
+        entities.set(entityClass, e)
+    }
+    entities.set(Token, await ctx.store.find(Token, {}).then((es) => new Map(es.map((e: any) => [e.id, e]))))
+
+    for (const mapper of mappers) {
+        await mapper.process(entities)
+    }
+
+    await ctx.store.save([...entities.get(UniswapFactory).values()])
+    await ctx.store.save([...entities.get(Bundle).values()])
+    await ctx.store.save([...entities.get(Token).values()])
+    await ctx.store.save([...entities.get(Pair).values()])
+    await ctx.store.save([...entities.get(Pool).values()])
+    await ctx.store.save([...entities.get(LiquidityPosition).values()])
+    await ctx.store.save([...entities.get(Transaction).values()])
+    await ctx.store.save([...entities.get(TokenSwapEvent).values()])
+
+    for (const [entityClass, entity] of entities) {
+        ctx.log.info(`saved ${entity.size} ${entityClass.name}`)
     }
 
     const lastBlock = ctx.blocks[ctx.blocks.length - 1].header
     await updateTop(ctx, lastBlock)
 })
 
-const knownPairContracts: Set<string> = new Set()
-
 async function isKnownPairContracts(store: Store, address: string) {
     const normalizedAddress = address.toLowerCase()
-    if (knownPairContracts.has(normalizedAddress)) {
+    if (knownContracts.pools.includes(normalizedAddress)) {
         return true
     } else if ((await store.countBy(Pair, { id: normalizedAddress })) > 0) {
-        knownPairContracts.add(normalizedAddress)
+        knownContracts.pools.push(normalizedAddress)
         return true
     }
     return false
 }
 
-async function handleEvmLog(ctx: EvmLogHandlerContext<Store>) {
-    const contractAddress = ctx.event.args.address
+async function handleEvmLog(
+    ctx: BatchContext<Store, unknown>,
+    block: SubstrateBlock,
+    event: EvmLogEvent
+): Promise<BaseMapper<any> | undefined> {
+    const contractAddress = event.args.address
     switch (contractAddress) {
         case FACTORY_ADDRESS:
-            await handleNewPair(ctx)
-            break
+            return await new NewPairMapper(ctx, block).parse(event)
         case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
         case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
-            switch (ctx.event.args.topics[0]) {
-                case swapFlashLoan.events['NewAdminFee(uint256)'].topic:
-                    await handleNewAdminFee(ctx)
-                    break
-                case swapFlashLoan.events['NewSwapFee(uint256)'].topic:
-                    await handleNewSwapFee(ctx)
-                    break
-                case swapFlashLoan.events['StopRampA(uint256,uint256)'].topic:
-                    await handleStopRampA(ctx)
-                    break
-                case swapFlashLoan.events['AddLiquidity(address,uint256[],uint256[],uint256,uint256)'].topic:
-                    await handleAddLiquidity(ctx)
-                    break
-                case swapFlashLoan.events['RemoveLiquidity(address,uint256[],uint256)'].topic:
-                    await handleRemoveLiquidity(ctx)
-                    break
-                case swapFlashLoan.events['RemoveLiquidityImbalance(address,uint256[],uint256[],uint256,uint256)']
-                    .topic:
-                    await handleRemoveLiquidityImbalance(ctx)
-                    break
-                case swapFlashLoan.events['RemoveLiquidityOne(address,uint256,uint256,uint256,uint256)'].topic:
-                    await handleRemoveLiquidityOne(ctx)
-                    break
-                case swapFlashLoan.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].topic:
-                    await handleTokenSwap(ctx)
-                    break
-            }
-            break
+            return await new TokenSwapMapper(ctx, block).parse(event)
         }
         default:
             if (await isKnownPairContracts(ctx.store, contractAddress)) {
-                switch (ctx.event.args.topics[0]) {
+                switch (event.args.topics[0]) {
                     case pair.events['Transfer(address,address,uint256)'].topic:
-                        return await handleTransfer(ctx)
+                        return await new TransferMapper(ctx, block).parse(event)
                     case pair.events['Sync(uint112,uint112)'].topic:
-                        return await handleSync(ctx)
+                        return await new SyncMapper(ctx, block).parse(event)
                     case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                        return await handleSwap(ctx)
+                        return await new SwapMapper(ctx, block).parse(event)
                     case pair.events['Mint(address,uint256,uint256)'].topic:
-                        return await handleMint(ctx)
+                        return await new MintMapper(ctx, block).parse(event)
                     case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                        return await handleBurn(ctx)
+                        return await new BurnMapper(ctx, block).parse(event)
                 }
             }
     }
@@ -169,9 +173,8 @@ const topUpdateInterval = 60 * 60 * 1000
 let lastUpdateTopTimestamp: number | undefined
 
 async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBlock) {
-    const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
-
     if (lastUpdateTopTimestamp == null) {
+        const swapStat = await ctx.store.findOneBy(SwapStatPeriod, { id: SwapPeriod.DAY })
         lastUpdateTopTimestamp = swapStat?.to.getTime() || -topUpdateInterval
     }
 
@@ -199,54 +202,54 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
         if (user == null) {
             user = new Swapper({
                 id: TokenSwapEvent.buyer,
-                dayAmountUSD: '0',
-                weekAmountUSD: '0',
-                monthAmountUSD: '0',
+                dayAmountUSD: BigDecimal('0'),
+                weekAmountUSD: BigDecimal('0'),
+                monthAmountUSD: BigDecimal('0'),
                 type: SwapperType.USER,
             })
             swappers.set(user.id, user)
         }
 
-        let pair = swappers.get(TokenSwapEvent.pairId)
+        let pair = swappers.get(TokenSwapEvent.pairId!)
         if (pair == null) {
             pair = new Swapper({
                 id: String(TokenSwapEvent.pairId),
-                dayAmountUSD: '0',
-                weekAmountUSD: '0',
-                monthAmountUSD: '0',
+                dayAmountUSD: BigDecimal('0'),
+                weekAmountUSD: BigDecimal('0'),
+                monthAmountUSD: BigDecimal('0'),
                 type: SwapperType.PAIR,
             })
             swappers.set(pair.id, pair)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - DAY_MS) {
-            user.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.dayAmountUSD).toFixed()
-            pair.dayAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.dayAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.DAY], TokenSwapEvent.amountUSD.toFixed())
+            user.dayAmountUSD = TokenSwapEvent.amountUSD.plus(user.dayAmountUSD)
+            pair.dayAmountUSD = TokenSwapEvent.amountUSD.plus(pair.dayAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.DAY], TokenSwapEvent.amountUSD)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - WEEK_MS) {
-            user.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.weekAmountUSD).toFixed()
-            pair.weekAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.weekAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.WEEK], TokenSwapEvent.amountUSD.toFixed())
+            user.weekAmountUSD = TokenSwapEvent.amountUSD.plus(user.weekAmountUSD)
+            pair.weekAmountUSD = TokenSwapEvent.amountUSD.plus(pair.weekAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.WEEK], TokenSwapEvent.amountUSD)
         }
 
         if (TokenSwapEvent.timestamp.getTime() >= end - MONTH_MS) {
-            user.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(user.monthAmountUSD).toFixed()
-            pair.monthAmountUSD = BigDecimal(TokenSwapEvent.amountUSD).plus(pair.monthAmountUSD).toFixed()
-            updateSwapStat(newSwapStat[SwapPeriod.MONTH], TokenSwapEvent.amountUSD.toFixed())
+            user.monthAmountUSD = TokenSwapEvent.amountUSD.plus(user.monthAmountUSD)
+            pair.monthAmountUSD = TokenSwapEvent.amountUSD.plus(pair.monthAmountUSD)
+            updateSwapStat(newSwapStat[SwapPeriod.MONTH], TokenSwapEvent.amountUSD)
         }
     }
 
     for (const swapper of swappers.values()) {
         if (swapper.type === SwapperType.PAIR) {
-            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].pairsCount += 1
-            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
-            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
+            if (swapper.dayAmountUSD.gt(0)) newSwapStat[SwapPeriod.DAY].pairsCount += 1
+            if (swapper.weekAmountUSD.gt(0)) newSwapStat[SwapPeriod.WEEK].pairsCount += 1
+            if (swapper.monthAmountUSD.gt(0)) newSwapStat[SwapPeriod.MONTH].pairsCount += 1
         } else {
-            if (BigDecimal(swapper.dayAmountUSD).gt(0)) newSwapStat[SwapPeriod.DAY].usersCount += 1
-            if (BigDecimal(swapper.weekAmountUSD).gt(0)) newSwapStat[SwapPeriod.WEEK].usersCount += 1
-            if (BigDecimal(swapper.monthAmountUSD).gt(0)) newSwapStat[SwapPeriod.MONTH].usersCount += 1
+            if (swapper.dayAmountUSD.gt(0)) newSwapStat[SwapPeriod.DAY].usersCount += 1
+            if (swapper.weekAmountUSD.gt(0)) newSwapStat[SwapPeriod.WEEK].usersCount += 1
+            if (swapper.monthAmountUSD.gt(0)) newSwapStat[SwapPeriod.MONTH].usersCount += 1
         }
     }
 
@@ -259,9 +262,9 @@ async function updateTop(ctx: BatchContext<Store, unknown>, block: SubstrateBloc
     ctx.log.info('Top updated.')
 }
 
-function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: string) {
+function updateSwapStat(swapStat: SwapStatPeriod, amountUSD: BigDecimal) {
     swapStat.swapsCount += 1
-    swapStat.totalAmountUSD = BigDecimal(amountUSD).plus(swapStat.totalAmountUSD).toFixed()
+    swapStat.totalAmountUSD = amountUSD.plus(swapStat.totalAmountUSD)
 }
 
 function createSwapStat(id: SwapPeriod, from: number, to: number) {
@@ -272,6 +275,6 @@ function createSwapStat(id: SwapPeriod, from: number, to: number) {
         swapsCount: 0,
         usersCount: 0,
         pairsCount: 0,
-        totalAmountUSD: '0',
+        totalAmountUSD: BigDecimal('0'),
     })
 }

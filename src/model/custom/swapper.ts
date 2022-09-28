@@ -1,4 +1,6 @@
+import { BigDecimal } from '@subsquid/big-decimal'
 import { Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_ } from 'typeorm'
+import * as marshal from '../generated/marshal'
 
 export enum SwapperType {
     PAIR = 'Pair',
@@ -17,12 +19,12 @@ export class Swapper {
     @Column_('varchar', { length: 5, nullable: false })
     type!: SwapperType
 
-    @Column_('numeric', { nullable: false, precision: 38, scale: 20 })
-    dayAmountUSD!: string
+    @Column_('numeric', { transformer: marshal.bigdecimalTransformer, nullable: false })
+    dayAmountUSD!: BigDecimal
 
-    @Column_('numeric', { nullable: false, precision: 38, scale: 20 })
-    weekAmountUSD!: string
+    @Column_('numeric', { transformer: marshal.bigdecimalTransformer, nullable: false })
+    weekAmountUSD!: BigDecimal
 
-    @Column_('numeric', { nullable: false, precision: 38, scale: 20 })
-    monthAmountUSD!: string
+    @Column_('numeric', { transformer: marshal.bigdecimalTransformer, nullable: false })
+    monthAmountUSD!: BigDecimal
 }

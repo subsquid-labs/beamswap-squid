@@ -1,15 +1,11 @@
 import { Token, LiquidityPosition, Pair } from '../model'
-import { Big as BigDecimal } from 'big.js'
 import { BatchContext, SubstrateBlock } from '@subsquid/substrate-processor'
 import { Store } from '@subsquid/typeorm-store'
 import * as erc20 from '../types/abi/erc20'
 import * as erc20NameBytes from '../types/abi/erc20NameBytes'
 import * as erc20SymbolBytes from '../types/abi/erc20SymbolBytes'
 import { ZERO_BD } from '../consts'
-
-export function convertTokenToDecimal(amount: bigint, decimals: number): BigDecimal {
-    return BigDecimal(amount.toString()).div(Math.pow(10, decimals).toString())
-}
+import {BigDecimal} from '@subsquid/big-decimal'
 
 async function fetchTokenSymbol(
     contract: erc20.Contract,
@@ -57,6 +53,8 @@ interface LiquidityPositionData {
 
 export function createLiquidityPosition(data: LiquidityPositionData): LiquidityPosition {
     const { pair, user } = data
+
+    pair.liquidityProviderCount += 1
 
     return new LiquidityPosition({
         id: `${pair.id}-${user}`,
@@ -123,7 +121,7 @@ export async function createToken(
         id: address,
         symbol,
         name,
-        totalSupply: convertTokenToDecimal(totalSupply, decimals),
+        totalSupply: BigDecimal(totalSupply, decimals).toFixed(),
         decimals,
         derivedETH: ZERO_BD,
         tradeVolume: ZERO_BD,

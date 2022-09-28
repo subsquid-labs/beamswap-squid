@@ -1,6 +1,6 @@
+import {BigDecimal} from "@subsquid/big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_} from "typeorm"
-import {bigDecimalTransformer} from "./marshal"
-import { Big as BigDecimal } from 'big.js'
+import * as marshal from "./marshal"
 
 @Entity_()
 export class Token {
@@ -20,24 +20,24 @@ export class Token {
   @Column_("int4", {nullable: false})
   decimals!: number
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
-  totalSupply!: BigDecimal
+  @Column_("text", {nullable: false})
+  totalSupply!: string
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   tradeVolume!: BigDecimal
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   tradeVolumeUSD!: BigDecimal
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   untrackedVolumeUSD!: BigDecimal
 
   @Column_("int4", {nullable: false})
   txCount!: number
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   totalLiquidity!: BigDecimal
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   derivedETH!: BigDecimal
 }

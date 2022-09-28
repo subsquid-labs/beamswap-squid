@@ -15,12 +15,6 @@ export class Transaction {
   @Column_("timestamp with time zone", {nullable: false})
   timestamp!: Date
 
-  @Column_("text", {array: true, nullable: false})
-  mints!: (string)[]
-
-  @Column_("text", {array: true, nullable: false})
-  burns!: (string)[]
-
-  @Column_("text", {array: true, nullable: false})
-  swaps!: (string)[]
+  @Column_("text", {array: true, nullable: true})
+  swaps!: (string)[] | undefined | null
 }

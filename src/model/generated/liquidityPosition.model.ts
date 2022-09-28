@@ -1,7 +1,7 @@
+import {BigDecimal} from "@subsquid/big-decimal"
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
+import * as marshal from "./marshal"
 import {Pair} from "./pair.model"
-import {bigDecimalTransformer} from "./marshal"
-import { Big as BigDecimal } from 'big.js'
 
 @Entity_()
 export class LiquidityPosition {
@@ -12,7 +12,6 @@ export class LiquidityPosition {
   @PrimaryColumn_()
   id!: string
 
-  @Index_()
   @Column_("text", {nullable: false})
   user!: string
 
@@ -20,6 +19,6 @@ export class LiquidityPosition {
   @ManyToOne_(() => Pair, {nullable: true})
   pair!: Pair
 
-  @Column_("numeric", {nullable: false, precision: 38, scale: 20, transformer: bigDecimalTransformer})
+  @Column_("numeric", {transformer: marshal.bigdecimalTransformer, nullable: false})
   liquidityTokenBalance!: BigDecimal
 }
