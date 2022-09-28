@@ -192,6 +192,7 @@ export class TradersResolver {
                             ? '"weekAmountUSD"'
                             : '"monthAmountUSD"'
                     } ${order}
+                    ${offset != null ? `OFFSET ${offset}` : ''}
                     ${limit != null ? `LIMIT ${limit}` : ''}
                     `
                   )
