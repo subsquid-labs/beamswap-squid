@@ -151,10 +151,10 @@ async function handleEvmLog(
     const contractAddress = evmLog.address
     switch (contractAddress) {
         case FACTORY_ADDRESS:
-            return await new NewPairMapper(ctx, block).parse(event)
+            return await new NewPairMapper(ctx, block).parse(evmLog)
         case '0x8273De7090C7067f3aE1b6602EeDbd2dbC02C48f'.toLowerCase():
         case '0x09A793cCa9D98b14350F2a767Eb5736AA6B6F921'.toLowerCase(): {
-            return await new TokenSwapMapper(ctx, block).parse(event)
+            return await new TokenSwapMapper(ctx, block).parse(evmLog, transaction)
         }
         default:
             if (await isKnownPairContracts(ctx.store, contractAddress)) {

@@ -5,6 +5,8 @@ import { EvmLogEvent } from '@subsquid/substrate-processor'
 import * as SwapFlash from '../types/abi/swapFlashLoan'
 import { BaseMapper, EntityClass, EntityMap } from './baseMapper'
 import { BigDecimal } from '@subsquid/big-decimal'
+import {EvmLog} from '@subsquid/substrate-frontier-evm'
+import {Transaction} from '@subsquid/substrate-frontier-evm/lib/transaction'
 
 interface TokenSwapData {
     txHash: string
@@ -19,16 +21,16 @@ interface TokenSwapData {
 }
 
 export class TokenSwapMapper extends BaseMapper<TokenSwapData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog, transaction: Transaction) {
+        const contractAddress = evmLog.address
 
-        const data = SwapFlash.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].decode(event.args)
+        const data = SwapFlash.events['TokenSwap(address,uint256,uint256,uint128,uint128)'].decode(evmLog)
 
         this.data = {
             poolId: contractAddress,
             timestamp: new Date(this.block.timestamp),
             blockNumber: this.block.height,
-            txHash: event.evmTxHash,
+            txHash: transaction.hash,
             // user stats
             soldId: data.soldId.toNumber(),
             boughtId: data.boughtId.toNumber(),

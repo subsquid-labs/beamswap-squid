@@ -4,6 +4,7 @@ import { Bundle, Pair, UniswapFactory, Token } from '../model'
 import * as factoryAbi from '../types/abi/factory'
 import { ZERO_BD } from '../consts'
 import { getOrCreateToken } from '../entities/token'
+import {EvmLog} from '@subsquid/substrate-frontier-evm'
 
 interface NewPairData {
     blockNumber: number
@@ -15,10 +16,10 @@ interface NewPairData {
 }
 
 export class NewPairMapper extends BaseMapper<NewPairData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog) {
+        const contractAddress = evmLog.address
 
-        const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(event.args)
+        const data = factoryAbi.events['PairCreated(address,address,address,uint256)'].decode(evmLog)
 
         this.data = {
             factoryId: contractAddress,
