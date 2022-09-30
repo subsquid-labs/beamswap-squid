@@ -24,8 +24,11 @@ import { BurnMapper, MintMapper, SwapMapper, SyncMapper, TransferMapper } from '
 import { TokenSwapMapper } from './mappers/swapFlashLoan'
 import { BigDecimal } from '@subsquid/big-decimal'
 import { readFileSync } from 'fs'
+import { getEvmLog, getTransaction } from '@subsquid/substrate-frontier-evm'
 
-const knownContracts: { lastBlock: number; pools: string[] } = JSON.parse(readFileSync('./assets/pools.json').toString())
+const knownContracts: { lastBlock: number; pools: string[] } = JSON.parse(
+    readFileSync('./assets/pools.json').toString()
+)
 
 const database = new TypeormDatabase()
 const processor = new SubstrateBatchProcessor()
@@ -143,7 +146,9 @@ async function handleEvmLog(
     block: SubstrateBlock,
     event: EvmLogEvent
 ): Promise<BaseMapper<any> | undefined> {
-    const contractAddress = event.args.address
+    const evmLog = getEvmLog(ctx, event)
+    const transaction = getTransaction(ctx, event.call)
+    const contractAddress = evmLog.address
     switch (contractAddress) {
         case FACTORY_ADDRESS:
             return await new NewPairMapper(ctx, block).parse(event)
@@ -153,17 +158,17 @@ async function handleEvmLog(
         }
         default:
             if (await isKnownPairContracts(ctx.store, contractAddress)) {
-                switch (event.args.topics[0]) {
+                switch (evmLog.topics[0]) {
                     case pair.events['Transfer(address,address,uint256)'].topic:
-                        return await new TransferMapper(ctx, block).parse(event)
+                        return await new TransferMapper(ctx, block).parse(evmLog, transaction)
                     case pair.events['Sync(uint112,uint112)'].topic:
-                        return await new SyncMapper(ctx, block).parse(event)
+                        return await new SyncMapper(ctx, block).parse(evmLog)
                     case pair.events['Swap(address,uint256,uint256,uint256,uint256,address)'].topic:
-                        return await new SwapMapper(ctx, block).parse(event)
+                        return await new SwapMapper(ctx, block).parse(evmLog, transaction)
                     case pair.events['Mint(address,uint256,uint256)'].topic:
-                        return await new MintMapper(ctx, block).parse(event)
+                        return await new MintMapper(ctx, block).parse(evmLog)
                     case pair.events['Burn(address,uint256,uint256,address)'].topic:
-                        return await new BurnMapper(ctx, block).parse(event)
+                        return await new BurnMapper(ctx, block).parse(evmLog)
                 }
             }
     }

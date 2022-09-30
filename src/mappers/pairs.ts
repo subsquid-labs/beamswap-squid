@@ -7,7 +7,8 @@ import { createLiquidityPosition } from '../utils/helpers'
 import { BaseMapper, EntityClass, EntityMap } from './baseMapper'
 import assert from 'assert'
 import { getOrCreateToken } from '../entities/token'
-import {BigDecimal} from '@subsquid/big-decimal'
+import { BigDecimal } from '@subsquid/big-decimal'
+import { EvmLog, Transaction as EvmTransaction } from '@subsquid/substrate-frontier-evm'
 
 const transferEventAbi = pairAbi.events['Transfer(address,address,uint256)']
 
@@ -22,10 +23,10 @@ interface TransferData {
 }
 
 export class TransferMapper extends BaseMapper<TransferData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog, transaction: EvmTransaction) {
+        const contractAddress = evmLog.address
 
-        const data = transferEventAbi.decode(event.args)
+        const data = transferEventAbi.decode(evmLog)
         // ignore initial transfers for first adds
 
         if (data.to === ADDRESS_ZERO && data.value.toBigInt() === 1000n) {
@@ -33,7 +34,7 @@ export class TransferMapper extends BaseMapper<TransferData> {
         }
 
         this.data = {
-            txHash: event.evmTxHash,
+            txHash: transaction.hash,
             timestamp: new Date(this.block.timestamp),
             blockNumber: this.block.height,
             pairId: contractAddress,
@@ -123,10 +124,10 @@ interface SyncData {
 }
 
 export class SyncMapper extends BaseMapper<SyncData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog) {
+        const contractAddress = evmLog.address
 
-        const data = syncEventAbi.decode(event.args)
+        const data = syncEventAbi.decode(evmLog)
         // ignore initial transfers for first adds
 
         this.data = {
@@ -230,10 +231,10 @@ interface MintData {
 }
 
 export class MintMapper extends BaseMapper<MintData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog) {
+        const contractAddress = evmLog.address
 
-        const data = mintAbi.decode(event.args)
+        const data = mintAbi.decode(evmLog)
 
         this.data = {
             pairId: contractAddress,
@@ -304,10 +305,10 @@ interface BurnData {
 }
 
 export class BurnMapper extends BaseMapper<BurnData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog) {
+        const contractAddress = evmLog.address
 
-        const data = burnAbi.decode(event.args)
+        const data = burnAbi.decode(evmLog)
 
         this.data = {
             pairId: contractAddress,
@@ -386,13 +387,13 @@ interface SwapData {
 }
 
 export class SwapMapper extends BaseMapper<SwapData> {
-    async parse(event: EvmLogEvent) {
-        const contractAddress = event.args.address
+    async parse(evmLog: EvmLog, transaction: EvmTransaction) {
+        const contractAddress = evmLog.address
 
-        const data = swapAbi.decode(event.args)
+        const data = swapAbi.decode(evmLog)
 
         this.data = {
-            txHash: event.evmTxHash,
+            txHash: transaction.hash,
             timestamp: new Date(this.block.timestamp),
             blockNumber: this.block.height,
             pairId: contractAddress,
